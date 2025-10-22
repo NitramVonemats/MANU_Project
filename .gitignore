@@ -1,0 +1,44 @@
+﻿# --- Python / Env / IDE ---
+.venv/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.idea/
+.vscode/
+
+# --- Data / Results / Logs (симни ги ако сакаш подоцна селективно) ---
+data/
+results/
+logs/
+**/logs/
+*.log
+
+# --- Tests/artifacts што не ти требаат на GitHub ---
+**/test/
+**/tests/
+
+# --- Large/binary artifacts ---
+*.csv
+*.tsv
+*.tab
+*.xlsx
+*.parquet
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.zip
+*.7z
+*.rar
+*.whl
+*.dll
+*.lib
+*.exe
+*.pkl
+*.pt
+*.onnx
+
+# --- OS trash ---
+.DS_Store
+Thumbs.db

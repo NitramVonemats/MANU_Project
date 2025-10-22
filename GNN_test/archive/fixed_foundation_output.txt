@@ -1,0 +1,39 @@
+Found local copy...
+Loading...
+Done!
+
+################################################################################
+# PRIMER - FIXED FOUNDATION
+################################################################################
+
+Key changes:
+  - Simpler architecture (3 layers, 64 hidden)
+  - STRONG regularization (dropout 0.5, weight_decay 1e-3)
+  - Simpler readout (mean + max only)
+  - 5-seed ensemble for stability
+  - Target: Achieve POSITIVE R2 on all datasets
+
+================================================================================
+ENSEMBLE TRAINING: Half_Life_Obach (5 seeds)
+================================================================================
+
+[1/5] Training with seed=42
+  0%|          | 0/667 [00:00<?, ?it/s] 26%|##5       | 171/667 [00:00<00:00, 1704.48it/s] 56%|#####5    | 372/667 [00:00<00:00, 1883.82it/s] 84%|########4 | 561/667 [00:00<00:00, 1875.43it/s]100%|##########| 667/667 [00:00<00:00, 1864.87it/s]
+
+Dataset: Half_Life_Obach
+Train: 466, Test: 135
+Traceback (most recent call last):
+  File "C:\Users\martinsta\PycharmProjects\MANU_Project\GNN_test\primer_fixed_foundation.py", line 601, in <module>
+    result = train_ensemble(
+        dataset,
+    ...<8 lines>...
+        patience=30,
+    )
+  File "C:\Users\martinsta\PycharmProjects\MANU_Project\GNN_test\primer_fixed_foundation.py", line 552, in train_ensemble
+    meta, val_m, test_m = train_single_model(dataset_name, seed=seed, **kwargs)
+                          ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\martinsta\PycharmProjects\MANU_Project\GNN_test\primer_fixed_foundation.py", line 471, in train_single_model
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', factor=0.5, patience=10, verbose=False
+    )
+TypeError: ReduceLROnPlateau.__init__() got an unexpected keyword argument 'verbose'
