@@ -1,0 +1,4 @@
+model_name,graph_layers,graph_hidden_channels,graph_norm,activation,heads,aggr,residual,use_edge_features,learning_rate,weight_decay,dropout,dataset,val_rmse,test_rmse,val_mae,test_mae,val_r2,test_r2,epochs_trained,seed,success
+TAG,3,64,BatchNorm,leaky_relu,1,max,True,False,0.0001,0.0001,0.0,Half_Life_Obach,82.83572492722418,297.6899472395734,23.892385482788086,40.79631423950195,0.37676702461146183,-187.2114860520581,18,42,True
+TAG,3,64,BatchNorm,leaky_relu,1,max,True,False,0.0001,0.0001,0.0,Clearance_Hepatocyte_AZ,59.742804058051625,60.970039389236085,35.764469146728516,38.95420837402344,-0.4285224041620601,-0.6130369741334563,2,42,True
+TAG,3,64,BatchNorm,leaky_relu,1,max,True,False,0.0001,0.0001,0.0,Clearance_Microsome_AZ,42.718552829647386,44.291215742991156,28.796899795532227,28.15460777282715,-0.06689078734413223,-0.057000512308728046,25,42,True

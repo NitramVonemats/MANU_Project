@@ -1,0 +1,2 @@
+model_name,graph_layers,graph_hidden_channels,graph_norm,activation,heads,aggr,residual,use_edge_features,learning_rate,weight_decay,dropout,dataset,val_rmse,test_rmse,val_mae,test_mae,val_r2,test_r2,epochs_trained,seed,success
+TAG,5,256,LayerNorm,leaky_relu,1,max,False,True,0.001,0.001,0.1,Half_Life_Obach,106.32072094904643,17.227039923939795,26.85968017578125,7.9482550621032715,-0.026717335844794965,0.36971190241626184,7,42,True

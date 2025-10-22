@@ -1,0 +1,4 @@
+model_name,graph_layers,graph_hidden_channels,graph_norm,activation,heads,aggr,residual,use_edge_features,learning_rate,weight_decay,dropout,dataset,val_rmse,test_rmse,val_mae,test_mae,val_r2,test_r2,epochs_trained,seed,success
+Graph,3,64,LayerNorm,swish,1,max,False,False,0.0005,0.0001,0.1,Half_Life_Obach,77.53729886218471,24.036751899841445,23.176969528198242,9.794744491577148,0.4539449794033765,-0.22707002488851757,9,42,True
+Graph,3,64,LayerNorm,swish,1,max,False,False,0.0005,0.0001,0.1,Clearance_Hepatocyte_AZ,49.945940013459804,54.17591066954943,34.50914764404297,36.64609909057617,0.0015731921798868287,-0.27357290769173837,9,42,True
+Graph,3,64,LayerNorm,swish,1,max,False,False,0.0005,0.0001,0.1,Clearance_Microsome_AZ,40.96650183333863,42.374851642900325,26.752948760986328,27.60380744934082,0.018829091497673867,0.0324879636389066,25,42,True

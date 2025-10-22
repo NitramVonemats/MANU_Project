@@ -1,0 +1,6 @@
+model_name,graph_layers,graph_hidden_channels,graph_norm,activation,heads,aggr,residual,use_edge_features,learning_rate,weight_decay,dropout,dataset,success,error,timestamp,K
+Transformer,3,128,LayerNorm,relu,8,add,True,True,0.0005,1e-05,0.1,Half_Life_Obach,False,name 'y_std' is not defined,2025-09-17T11:13:51.864840,
+Graph,5,128,LayerNorm,swish,1,add,True,False,0.001,0.001,0.3,Half_Life_Obach,False,name 'y_std' is not defined,2025-09-17T11:14:05.450833,
+GCN,6,256,GraphNorm,swish,1,max,True,True,0.001,1e-05,0.1,Half_Life_Obach,False,name 'y_std' is not defined,2025-09-17T11:14:21.509034,
+SGC,2,256,GraphNorm,leaky_relu,1,max,True,False,0.0001,0.0001,0.2,Half_Life_Obach,False,name 'y_std' is not defined,2025-09-17T11:14:27.298386,5.0
+TAG,4,512,LayerNorm,leaky_relu,1,mean,False,True,0.0005,1e-05,0.2,Half_Life_Obach,False,name 'y_std' is not defined,2025-09-17T11:14:38.505763,

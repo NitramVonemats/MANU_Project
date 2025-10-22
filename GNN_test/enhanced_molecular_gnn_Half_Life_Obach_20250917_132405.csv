@@ -1,0 +1,2 @@
+model_name,graph_layers,graph_hidden_channels,graph_norm,activation,heads,aggr,residual,use_edge_features,learning_rate,weight_decay,dropout,dataset,val_rmse,test_rmse,val_mae,test_mae,val_r2,test_r2,epochs_trained,seed,success
+GIN,3,256,BatchNorm,gelu,1,mean,False,True,5e-05,0.0001,0.3,Half_Life_Obach,106.37253504047696,17.35374412922855,25.816585540771484,7.828428745269775,-0.02771829573739204,0.3604063180545487,2,42,True

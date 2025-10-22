@@ -1,0 +1,2 @@
+model_name,graph_layers,graph_hidden_channels,graph_norm,activation,heads,aggr,residual,use_edge_features,learning_rate,weight_decay,dropout,dataset,success,error,timestamp
+GAT,3,32,GraphNorm,leaky_relu,4,add,False,False,0.0001,1e-05,0.0,Half_Life_Obach,False,name 'train_list' is not defined,2025-09-17T14:14:52.883684

@@ -1,0 +1,2 @@
+model_name,graph_layers,graph_hidden_channels,graph_norm,activation,heads,aggr,residual,use_edge_features,learning_rate,weight_decay,dropout,dataset,val_rmse,test_rmse,val_mae,test_mae,val_r2,test_r2,epochs_trained,seed,success
+Graph,3,64,LayerNorm,swish,1,max,False,False,0.0005,0.0001,0.1,Half_Life_Obach,77.53729886218471,24.036751899841445,23.176969528198242,9.794744491577148,0.4539449794033765,-0.22707002488851757,9,42,True
