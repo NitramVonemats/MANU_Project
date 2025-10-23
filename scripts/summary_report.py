@@ -52,7 +52,7 @@ print("\n" + "="*120)
 print("EXECUTIVE SUMMARY - НАЈДОБРИ РЕЗУЛТАТИ ЗА СЕКОЈ DATASET")
 print("="*120 + "\n")
 
-datasets = ['Half_Life_Obach', 'Clearance_Hepatocyte_AZ', 'Clearance_Microsome_AZ']
+datasets = ['Half_Life_Obach', 'Clearance_Hepatocyte_AZ', 'Clearance_Microsome_AZ0','Caco2_Wang']
 
 summary_data = []
 

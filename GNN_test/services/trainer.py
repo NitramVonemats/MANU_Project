@@ -5,6 +5,8 @@ import time
 import torch
 import torch.nn as nn
 from copy import deepcopy
+from pathlib import Path
+
 from functional.metrics import compute_metrics_np, spearman_metric
 from functional.transforms import inverse_y
 from functional.utils import set_global_seed
@@ -12,19 +14,7 @@ from graph.loader import build_loaders
 
 
 def train_one_epoch(model, loader, optimizer, device, loss_fn):
-    """
-    Train model for one epoch
-
-    Args:
-        model: PyTorch model
-        loader: DataLoader
-        optimizer: Optimizer
-        device: Device (cpu or cuda)
-        loss_fn: Loss function
-
-    Returns:
-        Average loss for the epoch
-    """
+    """Train model for one epoch."""
     model.train()
     total_loss = 0.0
 
@@ -46,18 +36,7 @@ def train_one_epoch(model, loader, optimizer, device, loss_fn):
 
 @torch.no_grad()
 def evaluate(model, loader, device, inverse=False):
-    """
-    Evaluate model on a dataset
-
-    Args:
-        model: PyTorch model
-        loader: DataLoader
-        device: Device
-        inverse: Whether to inverse transform predictions
-
-    Returns:
-        Tuple of (metrics_dict, predictions, true_values)
-    """
+    """Evaluate model on a dataset."""
     model.eval()
     preds, trues = [], []
 
@@ -68,11 +47,7 @@ def evaluate(model, loader, device, inverse=False):
         trues.append(data.y.view_as(p).detach().cpu())
 
     if not preds:
-        return {
-            "rmse": float("nan"),
-            "mae": float("nan"),
-            "r2": float("nan")
-        }, [], []
+        return {"rmse": float("nan"), "mae": float("nan"), "r2": float("nan")}, [], []
 
     preds = torch.cat(preds).float().numpy()
     trues = torch.cat(trues).float().numpy()
@@ -85,45 +60,52 @@ def evaluate(model, loader, device, inverse=False):
     return metrics, preds, trues
 
 
-def train_model(model_name, dataset_name, model, config, seed=42, epochs=150, patience=30, device=None):
+def train_model(
+    model_name,
+    dataset_name,
+    model,
+    config,
+    seed=42,
+    epochs=150,
+    patience=30,
+    device=None,
+    csv_path=None,           # <-- added
+):
     """
-    Train a single model with early stopping
+    Train a single model with early stopping.
 
     Args:
-        model_name: Name of the model (for logging)
-        dataset_name: TDC dataset name
-        model: PyTorch model
-        config: Configuration dictionary
-        seed: Random seed
-        epochs: Maximum epochs
-        patience: Early stopping patience
-        device: Device (cpu or cuda)
+        model_name: label for logging
+        dataset_name: TDC dataset name (e.g., "Caco2_Wang") OR None if using csv_path
+        model: torch.nn.Module
+        config: dict with at least {'split_type','lr','weight_decay'}
+        seed: int
+        epochs: int
+        patience: int
+        device: 'cpu' or 'cuda' (auto if None)
+        csv_path: path to local CSV with columns `smiles,target` (if provided, dataset_name can be None)
 
     Returns:
-        Dictionary with training results
+        dict with metrics and training info
     """
     set_global_seed(seed)
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
-    print(f"\n[{model_name}] Training on {dataset_name}...")
+    dataset_label = dataset_name if dataset_name is not None else (Path(csv_path).name if csv_path else "UNKNOWN")
+    print(f"\n[{model_name}] Training on {dataset_label}...")
 
-    # Build data loaders
+    # Build data loaders (supports TDC or local CSV via graph.loader.build_loaders)
     train_loader, val_loader, test_loader, adme_dim = build_loaders(
         dataset_name,
         split_type=config['split_type'],
         batch_train=32,
-        batch_eval=64
+        batch_eval=64,
+        csv_path=csv_path     # <-- threaded through
     )
 
     model = model.to(device)
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=config['lr'],
-        weight_decay=config['weight_decay']
-    )
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', factor=0.5, patience=10
-    )
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config['lr'], weight_decay=config['weight_decay'])
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10)
     loss_fn = nn.MSELoss()
 
     best_metric = float("inf")
@@ -170,7 +152,7 @@ def train_model(model_name, dataset_name, model, config, seed=42, epochs=150, pa
 
     return {
         "model_name": model_name,
-        "dataset": dataset_name,
+        "dataset": dataset_label,      # <-- now reflects TDC name or CSV filename
         "seed": seed,
         "test_rmse": test_metrics["rmse"],
         "test_r2": test_metrics["r2"],
