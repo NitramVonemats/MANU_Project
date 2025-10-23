@@ -7,14 +7,14 @@ __pycache__/
 .idea/
 .vscode/
 
-# --- Data / Results / Logs (симни ги ако сакаш подоцна селективно) ---
+# --- Data / Results / Logs  ---
 data/
 results/
 logs/
 **/logs/
 *.log
 
-# --- Tests/artifacts што не ти требаат на GitHub ---
+# --- Tests/artifacts  ---
 **/test/
 **/tests/
 
@@ -42,3 +42,4 @@ logs/
 # --- OS trash ---
 .DS_Store
 Thumbs.db
+
