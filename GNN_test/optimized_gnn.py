@@ -15,11 +15,11 @@
 - Clearance_Microsome_AZ: RMSE=1.0184, R²=0.3208
 """
 
-import math
 import time
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
@@ -39,6 +39,53 @@ try:
     RDKit_OK = True
 except Exception:
     RDKit_OK = False
+
+
+@dataclass
+class OptimizedGNNConfig:
+    """Configuration container for the optimized molecular GNN."""
+
+    hidden_dim: int = 128
+    num_layers: int = 5
+    head_dims: Sequence[int] = (256, 128, 64)
+    lr: float = 1e-3
+    weight_decay: float = 0.0
+    batch_train: int = 32
+    batch_eval: int = 64
+    val_fraction: float = 0.1
+    scheduler_patience: int = 10
+    scheduler_factor: float = 0.5
+    max_grad_norm: Optional[float] = 1.0
+    adme_dim: Optional[int] = None
+
+    def __post_init__(self):
+        self.head_dims = tuple(int(h) for h in self.head_dims)
+        if any(h <= 0 for h in self.head_dims):
+            raise ValueError("All head_dims must be positive.")
+        if self.hidden_dim <= 0:
+            raise ValueError("hidden_dim must be positive.")
+        if self.num_layers <= 0:
+            raise ValueError("num_layers must be positive.")
+        if self.batch_train <= 0 or self.batch_eval <= 0:
+            raise ValueError("Batch sizes must be positive.")
+        if not 0 < self.val_fraction < 0.5:
+            raise ValueError("val_fraction must be in (0, 0.5).")
+        if self.scheduler_patience < 0:
+            raise ValueError("scheduler_patience must be non-negative.")
+        if not (0.0 < self.scheduler_factor < 1.0):
+            raise ValueError("scheduler_factor must be in (0, 1).")
+        if self.weight_decay < 0:
+            raise ValueError("weight_decay must be non-negative.")
+        if self.max_grad_norm is not None and self.max_grad_norm <= 0:
+            raise ValueError("max_grad_norm must be positive when provided.")
+
+
+def resolve_device(device: str = "auto") -> str:
+    """Resolve device string, supporting 'auto'."""
+    device_lower = device.lower()
+    if device_lower == "auto":
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    return device
 
 # ===================== FEATURE EXTRACTION (SIMPLIFIED) =====================
 
@@ -144,7 +191,7 @@ class SimpleReadout(nn.Module):
 class OptimizedMolecularGNN(nn.Module):
     """ОПТИМИЗИРАН GNN модел - graph + ADME features"""
 
-    def __init__(self, input_dim=8, hidden_dim=128, num_layers=5, adme_dim=15):
+    def __init__(self, input_dim=8, hidden_dim=128, num_layers=5, adme_dim=15, head_dims: Sequence[int] = (256, 128, 64)):
         super().__init__()
 
         self.backbone = OptimalGraphBackbone(input_dim, hidden_dim, num_layers)
@@ -153,16 +200,22 @@ class OptimizedMolecularGNN(nn.Module):
         # Combined features
         combined_dim = self.readout.out_dim + adme_dim
 
-        # Prediction head - БЕЗ dropout!
-        self.head = nn.Sequential(
-            nn.Linear(combined_dim, 256),
-            nn.ReLU(),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1)
-        )
+        # Prediction head - динамички MLP
+        self.head = self._build_head(combined_dim, head_dims)
+
+    @staticmethod
+    def _build_head(input_dim: int, head_dims: Sequence[int]) -> nn.Sequential:
+        if not head_dims:
+            raise ValueError("head_dims must contain at least one layer size.")
+
+        layers: List[nn.Module] = []
+        current_dim = input_dim
+        for hidden in head_dims:
+            layers.append(nn.Linear(current_dim, int(hidden)))
+            layers.append(nn.ReLU())
+            current_dim = int(hidden)
+        layers.append(nn.Linear(current_dim, 1))
+        return nn.Sequential(*layers)
 
     def forward(self, data):
         # Graph embedding
@@ -200,73 +253,128 @@ def row_to_graph(from_smiles_fn, smiles: str, y_value: float):
     g.y = torch.tensor([0.0], dtype=torch.float)  # ќе се трансформира подоцна
 
     # ADME descriptors
-    g.adme_features = torch.tensor(adme_descriptors(smiles), dtype=torch.float)
+    g.adme_features = torch.tensor(adme_descriptors(smiles), dtype=torch.float32).view(1, -1)
 
     return g
 
 
-def build_loaders(dataset_name: str, batch_train=32, batch_eval=64):
-    """Подготви DataLoader објекти"""
+def prepare_dataset(
+    dataset_name: str,
+    val_fraction: float = 0.1,
+    seed: int = 42,
+    verbose: bool = True,
+):
+    """Подготви графови, нормализација и статистики за даден dataset."""
     from tdc.single_pred import ADME
+
     try:
         from torch_geometric.utils import from_smiles
-    except:
-        from torch_geometric.data import from_smiles
+    except ImportError:
+        from torch_geometric.data import from_smiles  # type: ignore
 
-    # Load dataset
     data_api = ADME(name=dataset_name)
     split = data_api.get_split(method="scaffold")
 
-    print(f"\n📊 Dataset: {dataset_name}")
-    print(f"Train: {len(split['train'])}, Test: {len(split['test'])}")
+    if verbose:
+        print(f"\n📊 Dataset: {dataset_name}")
+        print(f"Train: {len(split['train'])}, Test: {len(split['test'])}")
 
-    # Create graphs
-    train_list = [row_to_graph(from_smiles, row["Drug"], row["Y"])
-                  for _, row in split["train"].iterrows()]
-    train_list = [g for g in train_list if g is not None]
+    train_graphs = [
+        row_to_graph(from_smiles, row["Drug"], row["Y"])
+        for _, row in split["train"].iterrows()
+    ]
+    train_graphs = [g for g in train_graphs if g is not None]
 
-    test_list = [row_to_graph(from_smiles, row["Drug"], row["Y"])
-                 for _, row in split["test"].iterrows()]
-    test_list = [g for g in test_list if g is not None]
+    test_graphs = [
+        row_to_graph(from_smiles, row["Drug"], row["Y"])
+        for _, row in split["test"].iterrows()
+    ]
+    test_graphs = [g for g in test_graphs if g is not None]
 
-    # Validation split
-    n_val = max(1, int(0.1 * len(train_list)))
-    val_list = train_list[:n_val]
-    train_list = train_list[n_val:]
+    if len(train_graphs) < 2:
+        raise ValueError("Недоволно train примероци за подготвка на датасет.")
 
-    print(f"Splits: train={len(train_list)}, val={len(val_list)}, test={len(test_list)}")
+    rng = random.Random(seed)
+    rng.shuffle(train_graphs)
 
-    # Target scaling - LOG SPACE!
-    y_train = np.array([g.original_y for g in train_list])
+    n_val = max(1, int(len(train_graphs) * val_fraction))
+    if len(train_graphs) - n_val < 1:
+        n_val = max(1, len(train_graphs) - 1)
+    val_graphs = train_graphs[:n_val]
+    train_graphs = train_graphs[n_val:]
+
+    if not train_graphs:
+        raise ValueError("Валидациската поделба ја испразни тренинг групата.")
+
+    y_train = np.array([g.original_y for g in train_graphs], dtype=np.float32)
     y_log = np.log(np.clip(y_train, 1e-3, None))
-    mu, sigma = y_log.mean(), y_log.std()
+    mu = float(y_log.mean())
+    sigma = float(y_log.std())
+    if sigma < 1e-6:
+        sigma = 1.0
 
-    print(f"Log scaling: μ={mu:.3f}, σ={sigma:.3f}")
+    for g in train_graphs + val_graphs + test_graphs:
+        y_value = max(1e-3, float(g.original_y))
+        g.y = torch.tensor([(np.log(y_value) - mu) / sigma], dtype=torch.float32)
 
-    # Apply transformation
-    for g in train_list + val_list + test_list:
-        y_transformed = (np.log(max(1e-3, g.original_y)) - mu) / sigma
-        g.y = torch.tensor([y_transformed], dtype=torch.float)
-
-    # ADME standardization
-    adme_train = np.stack([g.adme_features.numpy() for g in train_list])
-    adme_mu, adme_sigma = adme_train.mean(0), adme_train.std(0)
+    adme_train = np.stack([g.adme_features.squeeze(0).numpy() for g in train_graphs])
+    adme_mu = torch.tensor(adme_train.mean(0), dtype=torch.float32)
+    adme_sigma = torch.tensor(adme_train.std(0), dtype=torch.float32)
     adme_sigma[adme_sigma == 0] = 1.0
 
-    for g in train_list + val_list + test_list:
-        g.adme_features = (g.adme_features - torch.from_numpy(adme_mu)) / torch.from_numpy(adme_sigma)
+    for g in train_graphs + val_graphs + test_graphs:
+        g.adme_features = (g.adme_features - adme_mu.unsqueeze(0)) / adme_sigma.unsqueeze(0)
 
-    # Create loaders
+    if verbose:
+        print(f"Splits: train={len(train_graphs)}, val={len(val_graphs)}, test={len(test_graphs)}")
+        print(f"Log scaling: μ={mu:.3f}, σ={sigma:.3f}")
+
+    return {
+        "train": train_graphs,
+        "val": val_graphs,
+        "test": test_graphs,
+        "log_stats": (mu, sigma),
+        "adme_stats": (adme_mu, adme_sigma),
+        "dataset_name": dataset_name,
+    }
+
+
+def build_loaders(
+    dataset_name: str,
+    batch_train: int = 32,
+    batch_eval: int = 64,
+    val_fraction: float = 0.1,
+    seed: int = 42,
+    dataset_cache: Optional[Dict[str, Any]] = None,
+    return_cache: bool = False,
+    verbose: bool = True,
+):
+    """Подготви DataLoader објекти за тренинг / валидација / тест."""
+    if dataset_cache is None:
+        dataset_cache = prepare_dataset(
+            dataset_name=dataset_name,
+            val_fraction=val_fraction,
+            seed=seed,
+            verbose=verbose,
+        )
+
+    train_list = dataset_cache["train"]
+    val_list = dataset_cache["val"]
+    test_list = dataset_cache["test"]
+    mu, sigma = dataset_cache["log_stats"]
+
     train_loader = DataLoader(train_list, batch_size=batch_train, shuffle=True)
-    val_loader = DataLoader(val_list, batch_size=batch_eval, shuffle=False)
-    test_loader = DataLoader(test_list, batch_size=batch_eval, shuffle=False)
+    val_loader = DataLoader(val_list, batch_size=max(1, batch_eval), shuffle=False)
+    test_loader = DataLoader(test_list, batch_size=max(1, batch_eval), shuffle=False)
 
+    if return_cache:
+        return train_loader, val_loader, test_loader, (mu, sigma), dataset_cache
     return train_loader, val_loader, test_loader, (mu, sigma)
 
 
 # ===================== TRAINING =====================
 
-def train_epoch(model, loader, optimizer, device):
+def train_epoch(model, loader, optimizer, device, max_grad_norm: Optional[float] = None):
     """Тренирај една епоха"""
     model.train()
     total_loss = 0
@@ -278,7 +386,8 @@ def train_epoch(model, loader, optimizer, device):
 
         optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        if max_grad_norm is not None:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
         optimizer.step()
 
         total_loss += loss.item()
@@ -313,81 +422,147 @@ def evaluate(model, loader, device, mu, sigma):
     return {"rmse": rmse, "mae": mae, "r2": r2}
 
 
-def train_model(dataset_name, epochs=100, patience=20, device="cpu", seed=42):
-    """Тренирај оптимизиран модел"""
+def train_model(
+    dataset_name: str,
+    config: Optional[OptimizedGNNConfig] = None,
+    epochs: int = 100,
+    patience: int = 20,
+    device: str = "cpu",
+    seed: int = 42,
+    dataset_cache: Optional[Dict[str, Any]] = None,
+    evaluate_test: bool = True,
+    return_model: bool = True,
+    verbose: bool = True,
+):
+    """Тренирај оптимизиран модел со зададени хиперпараметри."""
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
 
-    # Data
-    train_loader, val_loader, test_loader, (mu, sigma) = build_loaders(dataset_name)
+    resolved_device = resolve_device(device)
+    cfg = config or OptimizedGNNConfig()
 
-    # Model - ОПТИМАЛНА КОНФИГУРАЦИЈА!
+    dataset_cache = dataset_cache or prepare_dataset(
+        dataset_name=dataset_name,
+        val_fraction=cfg.val_fraction,
+        seed=seed,
+        verbose=verbose,
+    )
+    loaders = build_loaders(
+        dataset_name=dataset_name,
+        batch_train=cfg.batch_train,
+        batch_eval=cfg.batch_eval,
+        val_fraction=cfg.val_fraction,
+        seed=seed,
+        dataset_cache=dataset_cache,
+        verbose=verbose,
+    )
+    train_loader, val_loader, test_loader, (mu, sigma) = loaders
+
+    sample_graph = dataset_cache["train"][0]
+    input_dim = int(sample_graph.x.size(-1))
+    adme_dim = cfg.adme_dim or int(sample_graph.adme_features.numel())
+
     model = OptimizedMolecularGNN(
-        input_dim=8,      # Поедноставени atom features
-        hidden_dim=128,   # Докажано најдобро
-        num_layers=5,     # Докажано најдобро
-        adme_dim=15       # Поедноставени ADME features
-    ).to(device)
+        input_dim=input_dim,
+        hidden_dim=cfg.hidden_dim,
+        num_layers=cfg.num_layers,
+        adme_dim=adme_dim,
+        head_dims=cfg.head_dims,
+    ).to(resolved_device)
 
-    print(f"\n🧬 Model: Graph (5 layers, 128 hidden)")
-    print(f"Parameters: {sum(p.numel() for p in model.parameters()):,}")
+    if verbose:
+        print(f"\n🧬 Model: Graph ({cfg.num_layers} layers, {cfg.hidden_dim} hidden)")
+        print(f"Head dims: {tuple(cfg.head_dims)}, LR={cfg.lr:.4f}, WD={cfg.weight_decay:.2e}")
+        print(f"Parameters: {sum(p.numel() for p in model.parameters()):,}")
+        print(f"\n🏃 Training...")
 
-    # Optimizer - БЕЗ weight decay!
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, factor=0.5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
+    scheduler = None
+    if cfg.scheduler_patience > 0:
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            patience=cfg.scheduler_patience,
+            factor=cfg.scheduler_factor,
+        )
 
-    # Training loop
-    best_val_rmse = float('inf')
+    best_val_rmse = float("inf")
     best_state = None
     no_improvement = 0
+    history: List[Dict[str, float]] = []
 
-    print(f"\n🏃 Training...")
     start_time = time.time()
 
     for epoch in range(1, epochs + 1):
-        train_loss = train_epoch(model, train_loader, optimizer, device)
-        val_metrics = evaluate(model, val_loader, device, mu, sigma)
+        train_loss = train_epoch(model, train_loader, optimizer, resolved_device, cfg.max_grad_norm)
+        val_metrics = evaluate(model, val_loader, resolved_device, mu, sigma)
 
-        scheduler.step(val_metrics['rmse'])
+        if scheduler is not None:
+            scheduler.step(val_metrics["rmse"])
 
-        # Track best
-        if val_metrics['rmse'] < best_val_rmse:
-            best_val_rmse = val_metrics['rmse']
+        history.append(
+            {
+                "epoch": float(epoch),
+                "train_loss": float(train_loss),
+                "val_rmse": float(val_metrics["rmse"]),
+                "val_mae": float(val_metrics["mae"]),
+                "val_r2": float(val_metrics["r2"]),
+            }
+        )
+
+        if val_metrics["rmse"] < best_val_rmse:
+            best_val_rmse = val_metrics["rmse"]
             best_state = deepcopy(model.state_dict())
             no_improvement = 0
         else:
             no_improvement += 1
 
-        # Print progress
-        if epoch % 10 == 0 or epoch == 1:
-            print(f"Epoch {epoch:3d}: loss={train_loss:.4f}, val_rmse={val_metrics['rmse']:.3f}, val_r2={val_metrics['r2']:.3f}")
+        if verbose and (epoch % 10 == 0 or epoch == 1):
+            print(
+                f"Epoch {epoch:3d}: loss={train_loss:.4f}, "
+                f"val_rmse={val_metrics['rmse']:.3f}, val_r2={val_metrics['r2']:.3f}"
+            )
 
-        # Early stopping
         if no_improvement >= patience:
-            print(f"Early stopping at epoch {epoch}")
+            if verbose:
+                print(f"Early stopping at epoch {epoch}")
             break
 
-    # Load best model
     if best_state is not None:
         model.load_state_dict(best_state)
 
-    # Final evaluation
-    val_metrics = evaluate(model, val_loader, device, mu, sigma)
-    test_metrics = evaluate(model, test_loader, device, mu, sigma)
+    val_metrics = evaluate(model, val_loader, resolved_device, mu, sigma)
+    test_metrics = evaluate(model, test_loader, resolved_device, mu, sigma) if evaluate_test else None
 
     train_time = time.time() - start_time
 
-    print(f"\n✅ Training complete ({train_time:.1f}s)")
-    print(f"Val  - RMSE: {val_metrics['rmse']:.3f}, MAE: {val_metrics['mae']:.3f}, R²: {val_metrics['r2']:.3f}")
-    print(f"Test - RMSE: {test_metrics['rmse']:.3f}, MAE: {test_metrics['mae']:.3f}, R²: {test_metrics['r2']:.3f}")
+    if verbose:
+        print(f"\n✅ Training complete ({train_time:.1f}s)")
+        print(
+            f"Val  - RMSE: {val_metrics['rmse']:.3f}, MAE: {val_metrics['mae']:.3f}, R²: {val_metrics['r2']:.3f}"
+        )
+        if test_metrics is not None:
+            print(
+                f"Test - RMSE: {test_metrics['rmse']:.3f}, "
+                f"MAE: {test_metrics['mae']:.3f}, R²: {test_metrics['r2']:.3f}"
+            )
+
+    trained_model = model if return_model else None
+    if not return_model:
+        model.cpu()
+        if resolved_device.startswith("cuda") and torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     return {
-        "model": model,
+        "model": trained_model,
         "val_metrics": val_metrics,
         "test_metrics": test_metrics,
         "train_time": train_time,
         "dataset": dataset_name,
+        "config": cfg,
+        "history": history,
+        "mu": mu,
+        "sigma": sigma,
     }
 
 

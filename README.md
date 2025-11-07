@@ -49,17 +49,86 @@ Configuration: Graph model, 5 layers, 128 hidden channels
 3. Dropout not needed for small datasets
 4. Optimal: 5 layers, 128 hidden channels, LR=0.001
 
-## Usage
+## Installation
 
 ```bash
-# Install dependencies
-pip install torch torch-geometric rdkit pytdc pandas numpy scikit-learn matplotlib seaborn
+# 1. (Optional but recommended) create a fresh conda env
+conda create -n tdc_env python=3.10
+conda activate tdc_env
 
-# Run optimized model
-python src/optimized_gnn.py
+# 2. Install Python requirements (PyTorch, torch_geometric, RDKit, PyTDC, Niapy, etc.)
+pip install -r requirements.txt
 
-# Analyze results
+# 3. (If you see a RequestsDependencyWarning) install a charset detector
+pip install charset-normalizer
+```
+
+The project expects CUDA if available, but automatically falls back to CPU.
+
+## Running the Optimized GNN
+
+The main training entry point lives in `GNN_test/optimized_gnn.py`.
+
+```bash
+# Train on the default benchmark suite (Half_Life_Obach, Clearance_Hepatocyte_AZ, Clearance_Microsome_AZ)
+python GNN_test/optimized_gnn.py
+
+# Train a single dataset with custom settings
+python -c "from GNN_test.optimized_gnn import train_model; train_model('Half_Life_Obach', epochs=80, patience=15, device='auto')"
+```
+
+### Configuration
+
+`train_model` accepts an `OptimizedGNNConfig` (see file for full list). Example:
+
+```python
+from GNN_test.optimized_gnn import OptimizedGNNConfig, train_model
+
+cfg = OptimizedGNNConfig(
+    hidden_dim=192,
+    num_layers=4,
+    head_dims=(256, 128, 64),
+    lr=5e-4,
+    weight_decay=1e-4,
+    batch_train=64,
+    batch_eval=128,
+    val_fraction=0.15,
+)
+
+train_model('Half_Life_Obach', config=cfg, epochs=120, patience=20, device='auto')
+```
+
+## Hyperparameter Optimisation (HPO)
+
+The `hpo/` folder contains Niapy-based search drivers. Each script shares the same CLI:
+
+```bash
+# Random search (5 trials) on Caco2_Wang
+python -m hpo.random_search --dataset Caco2_Wang --trials 5 --epochs 40 --patience 8 --device auto
+
+# Genetic algorithm (population 24, 60 trials)
+python -m hpo.ga --dataset Caco2_Wang --pop 24 --trials 60 --epochs 60 --patience 12
+
+# Particle swarm optimisation
+python -m hpo.pso --dataset Half_Life_Obach --pop 20 --trials 50
+
+# Artificial bee colony, Hill Climb, Simulated Annealing are analogous
+python -m hpo.abc --dataset Clearance_Hepatocyte_AZ --trials 40
+python -m hpo.hc  --dataset Clearance_Microsome_AZ --trials 40
+python -m hpo.sa  --dataset Half_Life_Obach --trials 40
+```
+
+Outputs land in `runs/<dataset>/hpo_<dataset>_<algo>.json` and record the search space, best parameters, full training metrics, and history.
+
+**Tip:** The scripts reuse a cached dataset split per run. Delete the cache or change the random seed if you need a fresh split.
+
+## Analysis
+
+```bash
+# Generate aggregate reports / plots from CSV logs
 python scripts/analyze_gnn_results.py
+python scripts/summary_report.py
+python scripts/visualize_results.py
 ```
 
 ## Analysis Results
