@@ -39,6 +39,7 @@
 | Half_Life_Obach | 0.8388 | 0.2765 |
 | Clearance_Hepatocyte_AZ | 1.1921 | 0.0868 |
 | Clearance_Microsome_AZ | 1.0184 | 0.3208 |
+|Caco2_Wang|1.768614e+01|0.335670|
 
 Configuration: Graph model, 5 layers, 128 hidden channels
 
