@@ -58,7 +58,7 @@ def run_basic_training_for_dataset(
     
     # Import and run training directly
     try:
-        from GNN_test.optimized_gnn import train_model
+        from src.optimized_gnn import train_model
         
         result = train_model(
             dataset_name=dataset,

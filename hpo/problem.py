@@ -4,7 +4,7 @@ from typing import Optional
 import numpy as np
 from niapy.problems import Problem
 
-from GNN_test.optimized_gnn import (
+from src.optimized_gnn import (
     OptimizedGNNConfig,
     prepare_dataset,
     resolve_device,
