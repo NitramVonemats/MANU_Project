@@ -6,7 +6,8 @@ __pycache__/
 .ipynb_checkpoints/
 .idea/
 .vscode/
-
+docs/COMPLETE_DOCUMENTATION.md
+docs/DOCUMENTATION_GUIDE.md
 # --- Data / Results / Logs  ---
 data/
 results/
