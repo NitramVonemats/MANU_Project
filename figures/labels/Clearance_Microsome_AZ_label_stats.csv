@@ -1,0 +1,2 @@
+dataset,train_mean,train_median,train_std,train_min,train_max,train_skew,train_kurt,test_mean,test_median,test_std,log_train_mean,log_train_std,log_train_skew,shapiro_orig_p,shapiro_log_p,outliers_iqr_count,outliers_iqr_pct,ks_test_p
+Clearance_Microsome_AZ,36.60901426718548,15.0,45.51660808692906,3.0,150.0,1.484116756350147,0.9435982450872018,28.848009049773754,8.0,43.080423409061225,2.775297620566313,1.3418871516963797,0.20220554660509715,1.9789678884085508e-33,4.323891462717424e-21,113,11.391129032258064,0.0004595548456586315

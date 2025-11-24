@@ -20,12 +20,10 @@ logs/
 **/tests/
 
 # --- Large/binary artifacts ---
-*.csv
 *.tsv
 *.tab
 *.xlsx
 *.parquet
-*.png
 *.jpg
 *.jpeg
 *.gif

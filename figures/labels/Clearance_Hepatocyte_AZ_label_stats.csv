@@ -1,0 +1,2 @@
+dataset,train_mean,train_median,train_std,train_min,train_max,train_skew,train_kurt,test_mean,test_median,test_std,log_train_mean,log_train_std,log_train_skew,shapiro_orig_p,shapiro_log_p,outliers_iqr_count,outliers_iqr_pct,ks_test_p
+Clearance_Hepatocyte_AZ,44.03513545347468,19.5,50.2663413953957,3.0,150.0,1.1909097890819753,-0.04765526156914612,40.97218106995885,18.2,48.00586146242047,3.0105338030935727,1.3365035349054704,0.0325340381128717,1.876341377481425e-33,1.8459897694867666e-20,0,0.0,0.5813109316608569

@@ -1,0 +1,2 @@
+dataset,train_mean,train_median,train_std,train_min,train_max,train_skew,train_kurt,test_mean,test_median,test_std,log_train_mean,log_train_std,log_train_skew,shapiro_orig_p,shapiro_log_p,outliers_iqr_count,outliers_iqr_pct,ks_test_p
+Caco2_Wang,-5.208296599529042,-5.079999900000002,0.7997949472897611,-7.7600002,-3.51,-0.7366362817936722,0.11395291072022973,-5.3284226192307695,-5.3000002,0.6863733988987661,-13.815510557964274,0.0,,1.3503341996735346e-12,1.0,4,0.4884004884004884,0.006005724715351799
