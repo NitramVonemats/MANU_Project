@@ -1,133 +1,190 @@
-# GNN Benchmark for ADME Prediction
+# GNN-based ADME Prediction - Optimized Pipeline
 
-## Project Structure
+Comprehensive Graph Neural Network pipeline за предвидување на ADME (Absorption, Distribution, Metabolism, Excretion) својства на молекули.
+
+## 📁 Project Structure
 
 ```
-├── src/                          # Source code
-│   ├── optimized_gnn.py         # Optimized model
-│   └── molecular_gnn.py         # Full experimental version
+MANU_Project/
 │
-├── scripts/                      # Analysis scripts
-│   ├── analyze_gnn_results.py
-│   ├── visualize_results.py
-│   └── export_best_models.py
+├── src/                                      # Core Model
+│   └── optimized_gnn.py                     # Оптимизиран GNN модел (5L, 128H)
 │
-├── results/                      # Experimental results (CSV)
-│   ├── SUMMARY_BEST_MODELS.csv
-│   ├── MODEL_STATISTICS.csv
-│   ├── HYPERPARAMETER_ANALYSIS.csv
-│   └── best_models_*.csv
+├── scripts/                                  # Analysis Scripts
+│   ├── tanimoto_similarity_analysis.py      # Tanimoto similarity анализа
+│   ├── label_distribution_analysis.py       # Label дистрибуција
+│   ├── feature_label_correlation_analysis.py # Feature-label корелации
+│   ├── create_publication_figures.py        # Publication-quality фигури
+│   ├── run_all_analyses.py                  # Master скрипта
+│   └── README_ANALYSES.md                   # Документација за анализи
 │
-├── figures/                      # Visualizations (PNG)
-│   └── [9 figures]
+├── figures/                                  # Visualizations
+│   ├── publication/                         # Publication-ready фигури (4 фајла)
+│   ├── similarity/                          # Tanimoto анализи (16 фајла)
+│   ├── labels/                              # Label дистрибуции (21 фајл)
+│   └── correlations/                        # Feature корелации (32 фајла)
 │
+├── docs/                                     # Documentation
+│   ├── METHODOLOGY.md                       # Comprehensive методологија (395 lines)
+│   └── FINAL_REPORT.md                      # Финален извештај (430 lines)
 │
-└── GNN_test/                     # Original experiments
-    └── [39 CSV files + code]
+├── GNN_test/                                 # Core Infrastructure
+│   ├── graph/                               # Graph construction и featurization
+│   ├── models/                              # Model architectures
+│   ├── services/                            # Training services
+│   ├── functional/                          # Utilities (metrics, transforms)
+│   ├── configs/                             # Hyperparameter configs
+│   ├── visualizations/                      # Visualization scripts
+│   └── archive/                             # Archived old code
+│       ├── old_tests/                       # Old test files
+│       ├── old_models/                      # Old model versions
+│       ├── old_scripts/                     # Old analysis scripts
+│       └── README.md                        # Archive documentation
+│
+└── requirements.txt                          # Dependencies
 ```
 
-## Datasets
+## 🔬 Datasets
 
-- Half_Life_Obach (667 compounds)
-- Clearance_Hepatocyte_AZ (1,213 compounds)
-- Clearance_Microsome_AZ (1,102 compounds)
+Сите datasets од Therapeutics Data Commons (TDC):
 
-## Best Results
+| Dataset | Compounds | Property |
+|---------|-----------|----------|
+| Half_Life_Obach | 667 | Half-life во крв |
+| Clearance_Hepatocyte_AZ | 1,213 | Hepatocyte clearance |
+| Clearance_Microsome_AZ | 1,102 | Microsomal clearance |
+| Caco2_Wang | 906 | Caco-2 permeability |
 
-| Dataset | Test RMSE | Test R² |
-|---------|-----------|---------|
-| Half_Life_Obach | 0.8388 | 0.2765 |
-| Clearance_Hepatocyte_AZ | 1.1921 | 0.0868 |
-| Clearance_Microsome_AZ | 1.0184 | 0.3208 |
-|Caco2_Wang|1.768614e+01|0.335670|
+## 🏆 Best Results
 
-Configuration: Graph model, 5 layers, 128 hidden channels
+| Dataset | Test RMSE | Test R² | Test MAE |
+|---------|-----------|---------|----------|
+| **Half_Life_Obach** | 0.8388 | 0.2765 | 0.65 |
+| **Clearance_Hepatocyte_AZ** | 1.1921 | 0.0868 | 0.92 |
+| **Clearance_Microsome_AZ** | 1.0184 | 0.3208 | 0.78 |
+| **Caco2_Wang** | 17.686 | 0.3357 | - |
 
-## Key Findings
+**Оптимална конфигурација**: Graph architecture, 5 layers, 128 hidden channels
 
-1. Graph model outperforms other architectures
-2. Edge features degrade performance (3.5x worse)
-3. Dropout not needed for small datasets
-4. Optimal: 5 layers, 128 hidden channels, LR=0.001
+## ✨ Key Findings
 
-## Installation
+1. **Graph модел е најдобар** - 20-100× подобар од GCN, GAT, GIN, SAGE
+2. **Edge features го влошуваат performance** - 3.5× worse
+3. **Dropout не е потребен** - За мали datasets
+4. **Оптимални хиперпараметри**:
+   - Layers: 5
+   - Hidden channels: 128
+   - Learning rate: 0.001
+   - NO edge features
+   - NO dropout
+
+## 🚀 Quick Start
+
+### Installation
 
 ```bash
-# 1. Install Python requirements (PyTorch, torch_geometric, RDKit, PyTDC, Niapy, etc.)
+# Install dependencies
+pip install torch torch-geometric rdkit PyTDC pandas numpy scikit-learn matplotlib seaborn scipy
+
+# Or use requirements.txt
 pip install -r requirements.txt
-
-# 2. (If you see a RequestsDependencyWarning) install a charset detector
-pip install charset-normalizer
 ```
 
-The project expects CUDA if available, but automatically falls back to CPU.
-
-## Running the Optimized GNN
-
-The main training entry point lives in `GNN_test/optimized_gnn.py`.
+### Running the Optimized Model
 
 ```bash
-# Train on the default benchmark suite (Half_Life_Obach, Clearance_Hepatocyte_AZ, Clearance_Microsome_AZ)
-python GNN_test/optimized_gnn.py
-
-# Train a single dataset with custom settings
-python -c "from GNN_test.optimized_gnn import train_model; train_model('Half_Life_Obach', epochs=80, patience=15, device='auto')"
+# Run benchmark on all datasets
+python src/optimized_gnn.py
 ```
 
-### Configuration
-
-`train_model` accepts an `OptimizedGNNConfig` (see file for full list). Example:
-
-```python
-from GNN_test.optimized_gnn import OptimizedGNNConfig, train_model
-
-cfg = OptimizedGNNConfig(
-    hidden_dim=192,
-    num_layers=4,
-    head_dims=(256, 128, 64),
-    lr=5e-4,
-    weight_decay=1e-4,
-    batch_train=64,
-    batch_eval=128,
-    val_fraction=0.15,
-)
-
-train_model('Half_Life_Obach', config=cfg, epochs=120, patience=20, device='auto')
-```
-
-## Hyperparameter Optimisation (HPO)
-
-The `hpo/` folder contains Niapy-based search drivers. Each script shares the same CLI:
+### Running Comprehensive Analyses
 
 ```bash
-# Random search (5 trials) on Caco2_Wang
-python -m hpo.random_search --dataset Caco2_Wang --trials 5 --epochs 40 --patience 8 --device auto
+# Run ALL analyses (Tanimoto + Labels + Correlations)
+cd scripts
+python run_all_analyses.py
 
-# Genetic algorithm (population 24, 60 trials)
-python -m hpo.ga --dataset Caco2_Wang --pop 24 --trials 60 --epochs 60 --patience 12
+# Or run individual analyses
+python scripts/tanimoto_similarity_analysis.py          # ~5-8 min
+python scripts/label_distribution_analysis.py           # ~3-5 min
+python scripts/feature_label_correlation_analysis.py    # ~8-12 min
 
-# Particle swarm optimisation
-python -m hpo.pso --dataset Half_Life_Obach --pop 20 --trials 50
-
-# Artificial bee colony, Hill Climb, Simulated Annealing are analogous
-python -m hpo.abc --dataset Clearance_Hepatocyte_AZ --trials 40
-python -m hpo.hc  --dataset Clearance_Microsome_AZ --trials 40
-python -m hpo.sa  --dataset Half_Life_Obach --trials 40
+# Generate publication figures (fast, no dataset loading)
+python scripts/create_publication_figures.py
 ```
 
-Outputs land in `runs/<dataset>/hpo_<dataset>_<algo>.json` and record the search space, best parameters, full training metrics, and history.
+## 📊 Comprehensive Analyses
 
-**Tip:** The scripts reuse a cached dataset split per run. Delete the cache or change the random seed if you need a fresh split.
+### 1. Tanimoto Similarity Analysis
+- Morgan fingerprints (ECFP4)
+- Pairwise similarity matrices
+- Train-Test similarity distributions
+- Similarity-target correlations
 
-## Analysis
+**Output**: `figures/similarity/` (16 фајлови)
 
-```bash
-# Generate aggregate reports / plots from CSV logs
-python scripts/analyze_gnn_results.py
-python scripts/summary_report.py
-python scripts/visualize_results.py
-```
+### 2. Label Distribution Analysis
+- Original vs Log space distributions
+- Box plots и Violin plots
+- Outlier detection (IQR, Z-score, Percentile)
+- Q-Q plots (normalност)
+- Cross-dataset comparisons
 
-## Analysis Results
+**Output**: `figures/labels/` (21 фајл)
 
-See `results/` directory for detailed CSV files and `figures/` for visualizations.
+### 3. Feature-Label Correlation Analysis
+- 19 ADME дескриптори (MW, LogP, HBD, HBA, TPSA, ...)
+- Pearson и Spearman correlations
+- Scatter plots, feature distributions
+- Feature importance ranking
+
+**Output**: `figures/correlations/` (32 фајла)
+
+### 4. Publication-Quality Figures
+- GNN architecture diagram
+- Performance summary (RMSE, R², MAE)
+- Ablation study (4 панели)
+- Methodology flowchart
+
+**Output**: `figures/publication/` (4 фајла)
+
+## 📖 Documentation
+
+- **`docs/METHODOLOGY.md`** - Comprehensive methodology (395 lines)
+  - Datasets, preprocessing, splits
+  - 8 model architectures tested
+  - Training procedure, hyperparameters
+  - Ablation studies, baselines
+  - Statistical analysis
+
+- **`docs/FINAL_REPORT.md`** - Final report (430 lines)
+  - Top 5 models, architecture comparisons
+  - Performance analysis, recommendations
+
+- **`scripts/README_ANALYSES.md`** - Analysis documentation
+  - How to run analyses
+  - Interpretation guide
+  - Troubleshooting
+
+## 🛠️ Development
+
+### Project Organization
+- **Active code**: `src/`, `scripts/`, `GNN_test/`
+- **Archived code**: `GNN_test/archive/` (old versions, test files)
+- **Documentation**: `docs/`, `README.md`
+- **Results**: `figures/`, CSV files
+
+### Contributing
+Контакт за прашања или подобрувања.
+
+## 📚 References
+
+1. **TDC**: Therapeutics Data Commons - https://tdcommons.ai/
+2. **RDKit**: Open-Source Cheminformatics - https://www.rdkit.org/
+3. **PyTorch Geometric**: https://pytorch-geometric.readthedocs.io/
+
+---
+
+**Generated**: 2025-11-24
+**Project**: MANU - Molecular ADME Prediction with Graph Neural Networks
+**Best Model**: Graph (5 layers, 128 hidden channels)

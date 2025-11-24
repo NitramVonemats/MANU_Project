@@ -1,0 +1,2 @@
+dataset,train_mean,train_median,train_std,train_min,train_max,train_skew,train_kurt,test_mean,test_median,test_std,log_train_mean,log_train_std,log_train_skew,shapiro_orig_p,shapiro_log_p,outliers_iqr_count,outliers_iqr_pct,ks_test_p
+Half_Life_Obach,19.011319742489274,4.2,88.58742796334992,0.065,1200.0,9.91839784837073,105.86832633976886,10.190592592592592,3.9,21.699070188748674,1.5678727245612571,1.3714050032927074,0.594681534397401,4.298393144939571e-41,1.5046976688962316e-07,75,12.479201331114808,0.6913655689260412
