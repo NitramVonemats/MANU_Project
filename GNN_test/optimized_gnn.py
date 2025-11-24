@@ -139,24 +139,58 @@ def adme_descriptors(smiles: str) -> np.ndarray:
         return np.zeros(15, dtype=np.float32)
 
 
+def caco2_wang_descriptors(smiles: str) -> np.ndarray:
+    """Caco2_Wang permeability-relevant descriptors.
+    
+    Uses core ADME features relevant for permeability prediction:
+    MW, LogP, H-bond donors/acceptors, TPSA, rotatable bonds, aromatic rings.
+    """
+    if not RDKit_OK:
+        return np.zeros(7, dtype=np.float32)
+
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return np.zeros(7, dtype=np.float32)
+
+    try:
+        mw = Descriptors.MolWt(mol)
+        logp = Descriptors.MolLogP(mol)
+        hbd = rdMolDescriptors.CalcNumHBD(mol)
+        hba = rdMolDescriptors.CalcNumHBA(mol)
+        tpsa = rdMolDescriptors.CalcTPSA(mol)
+        rotatable = Descriptors.NumRotatableBonds(mol)
+        aromatic_rings = rdMolDescriptors.CalcNumAromaticRings(mol)
+        
+        return np.array([
+            mw, logp, hbd, hba, tpsa, rotatable, aromatic_rings
+        ], dtype=np.float32)
+    except Exception:
+        return np.zeros(7, dtype=np.float32)
+
+
 # ===================== OPTIMAL ARCHITECTURE =====================
 
 class OptimalGraphBackbone(nn.Module):
     """Graph модел - докажано најдобар! БЕЗ edge features"""
 
-    def __init__(self, input_dim=8, hidden_dim=128, num_layers=5):
+    def __init__(self, input_dim=8, hidden_dim=128, num_layers=5, dropout=0.0):
         super().__init__()
         self.num_layers = num_layers
         self.hidden_dim = hidden_dim
+        self.dropout = dropout
 
         # Graph convolution layers
         self.convs = nn.ModuleList()
         self.norms = nn.ModuleList()
+        if dropout > 0:
+            self.dropouts = nn.ModuleList()
 
         for i in range(num_layers):
             in_channels = input_dim if i == 0 else hidden_dim
             self.convs.append(GraphConv(in_channels, hidden_dim))
             self.norms.append(nn.BatchNorm1d(hidden_dim))
+            if dropout > 0:
+                self.dropouts.append(nn.Dropout(dropout))
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
@@ -165,6 +199,10 @@ class OptimalGraphBackbone(nn.Module):
             h = conv(x, edge_index)
             h = norm(h)
             h = F.relu(h)
+            
+            # Apply dropout if enabled
+            if self.dropout > 0:
+                h = self.dropouts[i](h)
 
             # Residual connection
             if i > 0:  # Skip first layer
@@ -191,28 +229,31 @@ class SimpleReadout(nn.Module):
 class OptimizedMolecularGNN(nn.Module):
     """ОПТИМИЗИРАН GNN модел - graph + ADME features"""
 
-    def __init__(self, input_dim=8, hidden_dim=128, num_layers=5, adme_dim=15, head_dims: Sequence[int] = (256, 128, 64)):
+    def __init__(self, input_dim=8, hidden_dim=128, num_layers=5, adme_dim=15, head_dims: Sequence[int] = (256, 128, 64), dropout=0.0):
         super().__init__()
 
-        self.backbone = OptimalGraphBackbone(input_dim, hidden_dim, num_layers)
+        self.backbone = OptimalGraphBackbone(input_dim, hidden_dim, num_layers, dropout=dropout)
         self.readout = SimpleReadout(hidden_dim)
 
         # Combined features
         combined_dim = self.readout.out_dim + adme_dim
 
         # Prediction head - динамички MLP
-        self.head = self._build_head(combined_dim, head_dims)
+        self.head = self._build_head(combined_dim, head_dims, dropout=dropout)
 
     @staticmethod
-    def _build_head(input_dim: int, head_dims: Sequence[int]) -> nn.Sequential:
+    def _build_head(input_dim: int, head_dims: Sequence[int], dropout: float = 0.0) -> nn.Sequential:
         if not head_dims:
             raise ValueError("head_dims must contain at least one layer size.")
 
         layers: List[nn.Module] = []
         current_dim = input_dim
-        for hidden in head_dims:
+        for i, hidden in enumerate(head_dims):
             layers.append(nn.Linear(current_dim, int(hidden)))
+            layers.append(nn.BatchNorm1d(int(hidden)))
             layers.append(nn.ReLU())
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
             current_dim = int(hidden)
         layers.append(nn.Linear(current_dim, 1))
         return nn.Sequential(*layers)
@@ -222,19 +263,23 @@ class OptimizedMolecularGNN(nn.Module):
         graph_emb = self.backbone(data)
         graph_pooled = self.readout(graph_emb, data.batch)
 
-        # ADME features
+        # ADME features (may be empty for some datasets like Caco2_Wang)
         adme = data.adme_features
         if adme.dim() == 1:
             adme = adme.unsqueeze(0)
 
-        # Combine and predict
-        combined = torch.cat([graph_pooled, adme], dim=-1)
+        # Combine and predict (handle empty ADME features gracefully)
+        if adme.numel() > 0:
+            combined = torch.cat([graph_pooled, adme], dim=-1)
+        else:
+            combined = graph_pooled  # No ADME features, use graph only
+        
         return self.head(combined).squeeze(-1)
 
 
 # ===================== DATA PROCESSING =====================
 
-def row_to_graph(from_smiles_fn, smiles: str, y_value: float):
+def row_to_graph(from_smiles_fn, smiles: str, y_value: float, dataset_name: str = None):
     """Креирај graph објект од SMILES"""
     g = from_smiles_fn(smiles)
     if g is None or getattr(g, "x", None) is None:
@@ -252,8 +297,13 @@ def row_to_graph(from_smiles_fn, smiles: str, y_value: float):
     g.original_y = float(y_value)
     g.y = torch.tensor([0.0], dtype=torch.float)  # ќе се трансформира подоцна
 
-    # ADME descriptors
-    g.adme_features = torch.tensor(adme_descriptors(smiles), dtype=torch.float32).view(1, -1)
+    # ADME descriptors - dataset-specific for Caco2_Wang
+    if dataset_name == "Caco2_Wang":
+        descriptors = caco2_wang_descriptors(smiles)
+    else:
+        descriptors = adme_descriptors(smiles)
+    
+    g.adme_features = torch.tensor(descriptors, dtype=torch.float32).view(1, -1)
 
     return g
 
@@ -279,14 +329,21 @@ def prepare_dataset(
         print(f"\n📊 Dataset: {dataset_name}")
         print(f"Train: {len(split['train'])}, Test: {len(split['test'])}")
 
+    # Check for duplicate SMILES (data leakage indicator)
+    train_smiles = set(split['train']['Drug'].values)
+    test_smiles = set(split['test']['Drug'].values)
+    overlap = train_smiles & test_smiles
+    if overlap and verbose:
+        print(f"⚠️  WARNING: {len(overlap)} duplicate SMILES found between train and test sets!")
+
     train_graphs = [
-        row_to_graph(from_smiles, row["Drug"], row["Y"])
+        row_to_graph(from_smiles, row["Drug"], row["Y"], dataset_name)
         for _, row in split["train"].iterrows()
     ]
     train_graphs = [g for g in train_graphs if g is not None]
 
     test_graphs = [
-        row_to_graph(from_smiles, row["Drug"], row["Y"])
+        row_to_graph(from_smiles, row["Drug"], row["Y"], dataset_name)
         for _, row in split["test"].iterrows()
     ]
     test_graphs = [g for g in test_graphs if g is not None]
@@ -307,28 +364,83 @@ def prepare_dataset(
         raise ValueError("Валидациската поделба ја испразни тренинг групата.")
 
     y_train = np.array([g.original_y for g in train_graphs], dtype=np.float32)
-    y_log = np.log(np.clip(y_train, 1e-3, None))
-    mu = float(y_log.mean())
-    sigma = float(y_log.std())
-    if sigma < 1e-6:
-        sigma = 1.0
+    y_val = np.array([g.original_y for g in val_graphs], dtype=np.float32)
+    y_all = np.concatenate([y_train, y_val])
+    
+    # Detect if values are already log-transformed (all negative) or need log transform
+    all_negative = np.all(y_all < 0)
+    all_positive = np.all(y_all > 0)
+    
+    # Always print diagnostic info for Caco2_Wang
+    if dataset_name == "Caco2_Wang":
+        print(f"  Original target range (train): [{y_train.min():.10e}, {y_train.max():.10e}]")
+        print(f"  Original target range (val):   [{y_val.min():.10e}, {y_val.max():.10e}]")
+        print(f"  All negative: {all_negative}, All positive: {all_positive}")
+        print(f"  Train unique values: {len(np.unique(y_train))}/{len(y_train)}")
+    
+    # Handle transformation based on value signs
+    if all_negative:
+        # Values are already log-transformed (e.g., Caco2_Wang), skip log transform
+        print(f"  📊 Detected log-transformed values (all negative), skipping log transform")
+        y_log = y_train.astype(np.float32)
+        mu = float(y_log.mean())
+        sigma = float(y_log.std())
+        
+        if sigma < 1e-6:
+            print(f"  ⚠️  WARNING: sigma={sigma:.10e} too small, setting to 1.0")
+            sigma = 1.0
+        
+        # Apply normalization directly (no log transform needed)
+        for g in train_graphs + val_graphs + test_graphs:
+            y_value = float(g.original_y)
+            g.y = torch.tensor([(y_value - mu) / sigma], dtype=torch.float32)
+    else:
+        # Normal case: positive values, apply log transform
+        clip_min = 1e-3 if dataset_name != "Caco2_Wang" else 1e-6
+        
+        if dataset_name == "Caco2_Wang":
+            positive_values = y_all[y_all > 0]
+            if len(positive_values) > 0:
+                min_val = float(positive_values.min())
+                clip_min = max(min_val / 1000.0, 1e-9)
+            else:
+                clip_min = 1e-9
+            print(f"  Using clip_min={clip_min:.10e}")
+        
+        y_train_clipped = np.clip(y_train, clip_min, None)
+        y_log = np.log(y_train_clipped)
+        mu = float(y_log.mean())
+        sigma = float(y_log.std())
+        
+        if sigma < 1e-6:
+            print(f"  ⚠️  WARNING: sigma={sigma:.10e} too small, setting to 1.0")
+            sigma = 1.0
+        
+        for g in train_graphs + val_graphs + test_graphs:
+            y_value = max(clip_min, float(g.original_y))
+            g.y = torch.tensor([(np.log(y_value) - mu) / sigma], dtype=torch.float32)
 
-    for g in train_graphs + val_graphs + test_graphs:
-        y_value = max(1e-3, float(g.original_y))
-        g.y = torch.tensor([(np.log(y_value) - mu) / sigma], dtype=torch.float32)
+    # Handle ADME feature normalization (skip if features are empty)
+    if len(train_graphs) > 0 and train_graphs[0].adme_features.numel() > 0:
+        adme_train = np.stack([g.adme_features.squeeze(0).numpy() for g in train_graphs])
+        adme_mu = torch.tensor(adme_train.mean(0), dtype=torch.float32)
+        adme_sigma = torch.tensor(adme_train.std(0), dtype=torch.float32)
+        adme_sigma[adme_sigma == 0] = 1.0
 
-    adme_train = np.stack([g.adme_features.squeeze(0).numpy() for g in train_graphs])
-    adme_mu = torch.tensor(adme_train.mean(0), dtype=torch.float32)
-    adme_sigma = torch.tensor(adme_train.std(0), dtype=torch.float32)
-    adme_sigma[adme_sigma == 0] = 1.0
-
-    for g in train_graphs + val_graphs + test_graphs:
-        g.adme_features = (g.adme_features - adme_mu.unsqueeze(0)) / adme_sigma.unsqueeze(0)
+        for g in train_graphs + val_graphs + test_graphs:
+            g.adme_features = (g.adme_features - adme_mu.unsqueeze(0)) / adme_sigma.unsqueeze(0)
+    else:
+        # No ADME features to normalize (e.g., Caco2_Wang with empty features)
+        adme_mu = torch.tensor([], dtype=torch.float32)
+        adme_sigma = torch.tensor([], dtype=torch.float32)
 
     if verbose:
         print(f"Splits: train={len(train_graphs)}, val={len(val_graphs)}, test={len(test_graphs)}")
         print(f"Log scaling: μ={mu:.3f}, σ={sigma:.3f}")
 
+    # Store whether values were already log-transformed
+    is_log_transformed = all_negative if dataset_name == "Caco2_Wang" else False
+    
     return {
         "train": train_graphs,
         "val": val_graphs,
@@ -336,6 +448,7 @@ def prepare_dataset(
         "log_stats": (mu, sigma),
         "adme_stats": (adme_mu, adme_sigma),
         "dataset_name": dataset_name,
+        "is_log_transformed": is_log_transformed,  # Flag for inverse transform
     }
 
 
@@ -366,15 +479,22 @@ def build_loaders(
     train_loader = DataLoader(train_list, batch_size=batch_train, shuffle=True)
     val_loader = DataLoader(val_list, batch_size=max(1, batch_eval), shuffle=False)
     test_loader = DataLoader(test_list, batch_size=max(1, batch_eval), shuffle=False)
+    
+    # Debug: Check loader sizes
+    if verbose:
+        print(f"Loader sizes: train={len(train_loader)}, val={len(val_loader)}, test={len(test_loader)}")
+        print(f"Dataset sizes: train={len(train_list)}, val={len(val_list)}, test={len(test_list)}")
 
     if return_cache:
         return train_loader, val_loader, test_loader, (mu, sigma), dataset_cache
+    # Return mu, sigma, and is_log_transformed flag
+    is_log_transformed = dataset_cache.get("is_log_transformed", False) if return_cache else False
     return train_loader, val_loader, test_loader, (mu, sigma)
 
 
 # ===================== TRAINING =====================
 
-def train_epoch(model, loader, optimizer, device, max_grad_norm: Optional[float] = None):
+def train_epoch(model, loader, optimizer, device, max_grad_norm: Optional[float] = None, label_noise: float = 0.0):
     """Тренирај една епоха"""
     model.train()
     total_loss = 0
@@ -382,7 +502,14 @@ def train_epoch(model, loader, optimizer, device, max_grad_norm: Optional[float]
     for data in loader:
         data = data.to(device)
         pred = model(data)
-        loss = F.mse_loss(pred, data.y)
+        
+        # Add label noise for regularization (helps prevent memorization)
+        targets = data.y
+        if label_noise > 0:
+            noise = torch.randn_like(targets) * label_noise
+            targets = targets + noise
+        
+        loss = F.mse_loss(pred, targets)
 
         optimizer.zero_grad()
         loss.backward()
@@ -396,10 +523,19 @@ def train_epoch(model, loader, optimizer, device, max_grad_norm: Optional[float]
 
 
 @torch.no_grad()
-def evaluate(model, loader, device, mu, sigma):
-    """Евалуирај модел (вратено во оригинален scale)"""
+def evaluate(model, loader, device, mu, sigma, is_log_transformed=False):
+    """Евалуирај модел (вратено во оригинален scale)
+    
+    Args:
+        is_log_transformed: If True, values were already in log space before normalization,
+                           so inverse normalization gives log values which need exp()
+    """
     model.eval()
     preds, trues = [], []
+
+    if len(loader) == 0:
+        # Empty loader - return NaN metrics
+        return {"rmse": float("nan"), "mae": float("nan"), "r2": float("nan")}
 
     for data in loader:
         data = data.to(device)
@@ -407,19 +543,78 @@ def evaluate(model, loader, device, mu, sigma):
         preds.append(pred.cpu())
         trues.append(data.y.cpu())
 
+    if not preds:
+        return {"rmse": float("nan"), "mae": float("nan"), "r2": float("nan")}
+
     preds = torch.cat(preds).numpy()
     trues = torch.cat(trues).numpy()
 
-    # Inverse transform
-    preds_orig = np.exp(preds * sigma + mu)
-    trues_orig = np.exp(trues * sigma + mu)
+    # Check for NaN or Inf values
+    if np.any(np.isnan(preds)) or np.any(np.isinf(preds)):
+        return {"rmse": float("inf"), "mae": float("inf"), "r2": float("-inf")}
+    if np.any(np.isnan(trues)) or np.any(np.isinf(trues)):
+        return {"rmse": float("inf"), "mae": float("inf"), "r2": float("-inf")}
+
+    # Inverse transform: denormalize then exp() to get original scale
+    # Both paths (log-transformed or not) need exp() because:
+    # - If already log-transformed: normalized -> log_value -> exp(log_value) = original
+    # - If not log-transformed: normalized -> log_value (from our log transform) -> exp(log_value) = original
+    preds_log = preds * sigma + mu
+    trues_log = trues * sigma + mu
+    
+    # Convert to original scale (always use exp since we want original values)
+    preds_orig = np.exp(preds_log)
+    trues_orig = np.exp(trues_log)
+
+    # Check for invalid values after inverse transform
+    if np.any(np.isnan(preds_orig)) or np.any(np.isinf(preds_orig)):
+        return {"rmse": float("inf"), "mae": float("inf"), "r2": float("-inf")}
+    if np.any(np.isnan(trues_orig)) or np.any(np.isinf(trues_orig)):
+        return {"rmse": float("inf"), "mae": float("inf"), "r2": float("-inf")}
 
     # Metrics
-    rmse = np.sqrt(np.mean((preds_orig - trues_orig) ** 2))
+    squared_errors = (preds_orig - trues_orig) ** 2
+    mse = np.mean(squared_errors)
+    
+    # Calculate RMSE - handle edge cases
+    if mse < 1e-10:  # Essentially zero (numerical precision)
+        rmse = 0.0
+    else:
+        rmse = np.sqrt(mse)
+    
     mae = np.mean(np.abs(preds_orig - trues_orig))
-    r2 = 1 - np.sum((preds_orig - trues_orig) ** 2) / (np.sum((trues_orig - trues_orig.mean()) ** 2) + 1e-12)
+    
+    # R² calculation with safety check
+    ss_res = np.sum(squared_errors)
+    ss_tot = np.sum((trues_orig - trues_orig.mean()) ** 2)
+    
+    if ss_tot < 1e-12:
+        # All targets are identical
+        r2 = 1.0 if ss_res < 1e-12 else 0.0
+    else:
+        r2 = 1 - (ss_res / ss_tot)
+        # Clip R² to reasonable range
+        r2 = max(-10.0, min(10.0, r2))
 
-    return {"rmse": rmse, "mae": mae, "r2": r2}
+    # Debug: print actual values if RMSE is suspiciously low
+    if rmse < 0.001 and len(preds_orig) > 0:
+        max_diff = np.max(np.abs(preds_orig - trues_orig))
+        mean_pred = np.mean(preds_orig)
+        mean_true = np.mean(trues_orig)
+        std_pred = np.std(preds_orig)
+        std_true = np.std(trues_orig)
+        
+        # Print debug info with more precision
+        print(f"  DEBUG: RMSE={rmse:.8f}, MAE={mae:.8f}, max_diff={max_diff:.8f}")
+        print(f"  DEBUG: pred_mean={mean_pred:.8f}, true_mean={mean_true:.8f}")
+        print(f"  DEBUG: pred_std={std_pred:.8f}, true_std={std_true:.8f}, n_samples={len(preds_orig)}")
+        print(f"  DEBUG: pred_range=[{np.min(preds_orig):.8f}, {np.max(preds_orig):.8f}]")
+        print(f"  DEBUG: true_range=[{np.min(trues_orig):.8f}, {np.max(trues_orig):.8f}]")
+        print(f"  DEBUG: log_pred_range=[{np.min(preds):.4f}, {np.max(preds):.4f}]")
+        print(f"  DEBUG: log_true_range=[{np.min(trues):.4f}, {np.max(trues):.4f}]")
+        print(f"  DEBUG: mu={mu:.4f}, sigma={sigma:.4f}")
+
+    return {"rmse": float(rmse), "mae": float(mae), "r2": float(r2)}
 
 
 def train_model(
@@ -456,12 +651,19 @@ def train_model(
         seed=seed,
         dataset_cache=dataset_cache,
         verbose=verbose,
+        return_cache=True,
     )
-    train_loader, val_loader, test_loader, (mu, sigma) = loaders
+    train_loader, val_loader, test_loader, (mu, sigma), dataset_cache = loaders
+    is_log_transformed = dataset_cache.get("is_log_transformed", False)
 
     sample_graph = dataset_cache["train"][0]
     input_dim = int(sample_graph.x.size(-1))
     adme_dim = cfg.adme_dim or int(sample_graph.adme_features.numel())
+
+    # Use dropout for Caco2_Wang to help prevent overfitting (let HPO find best model size)
+    dropout = 0.5 if dataset_name == "Caco2_Wang" else 0.0
+    if verbose and dataset_name == "Caco2_Wang":
+        print(f"⚠️  Caco2_Wang: Using dropout={dropout} for regularization")
 
     model = OptimizedMolecularGNN(
         input_dim=input_dim,
@@ -469,6 +671,7 @@ def train_model(
         num_layers=cfg.num_layers,
         adme_dim=adme_dim,
         head_dims=cfg.head_dims,
+        dropout=dropout,
     ).to(resolved_device)
 
     if verbose:
@@ -492,9 +695,13 @@ def train_model(
     history: List[Dict[str, float]] = []
 
     start_time = time.time()
+    
+    # Add aggressive label noise for Caco2_Wang to prevent memorization
+    # Higher noise prevents exact memorization while still allowing learning
+    label_noise = 0.05 if dataset_name == "Caco2_Wang" else 0.0  # Increased from 0.01
 
     for epoch in range(1, epochs + 1):
-        train_loss = train_epoch(model, train_loader, optimizer, resolved_device, cfg.max_grad_norm)
+        train_loss = train_epoch(model, train_loader, optimizer, resolved_device, cfg.max_grad_norm, label_noise=label_noise)
         val_metrics = evaluate(model, val_loader, resolved_device, mu, sigma)
 
         if scheduler is not None:
@@ -520,7 +727,7 @@ def train_model(
         if verbose and (epoch % 10 == 0 or epoch == 1):
             print(
                 f"Epoch {epoch:3d}: loss={train_loss:.4f}, "
-                f"val_rmse={val_metrics['rmse']:.3f}, val_r2={val_metrics['r2']:.3f}"
+                f"val_rmse={val_metrics['rmse']:.6f}, val_r2={val_metrics['r2']:.6f}"
             )
 
         if no_improvement >= patience:
@@ -532,19 +739,19 @@ def train_model(
         model.load_state_dict(best_state)
 
     val_metrics = evaluate(model, val_loader, resolved_device, mu, sigma)
-    test_metrics = evaluate(model, test_loader, resolved_device, mu, sigma) if evaluate_test else None
+    test_metrics = evaluate(model, test_loader, resolved_device, mu, sigma, is_log_transformed) if evaluate_test else None
 
     train_time = time.time() - start_time
 
     if verbose:
         print(f"\n✅ Training complete ({train_time:.1f}s)")
         print(
-            f"Val  - RMSE: {val_metrics['rmse']:.3f}, MAE: {val_metrics['mae']:.3f}, R²: {val_metrics['r2']:.3f}"
+            f"Val  - RMSE: {val_metrics['rmse']:.6f}, MAE: {val_metrics['mae']:.6f}, R²: {val_metrics['r2']:.6f}"
         )
         if test_metrics is not None:
             print(
-                f"Test - RMSE: {test_metrics['rmse']:.3f}, "
-                f"MAE: {test_metrics['mae']:.3f}, R²: {test_metrics['r2']:.3f}"
+                f"Test - RMSE: {test_metrics['rmse']:.6f}, "
+                f"MAE: {test_metrics['mae']:.6f}, R²: {test_metrics['r2']:.6f}"
             )
 
     trained_model = model if return_model else None

@@ -53,14 +53,10 @@ Configuration: Graph model, 5 layers, 128 hidden channels
 ## Installation
 
 ```bash
-# 1. (Optional but recommended) create a fresh conda env
-conda create -n tdc_env python=3.10
-conda activate tdc_env
-
-# 2. Install Python requirements (PyTorch, torch_geometric, RDKit, PyTDC, Niapy, etc.)
+# 1. Install Python requirements (PyTorch, torch_geometric, RDKit, PyTDC, Niapy, etc.)
 pip install -r requirements.txt
 
-# 3. (If you see a RequestsDependencyWarning) install a charset detector
+# 2. (If you see a RequestsDependencyWarning) install a charset detector
 pip install charset-normalizer
 ```
 
