@@ -1,5 +1,5 @@
 {
-  "algo": "pso",
+  "algo": "hc",
   "dataset": "Half_Life_Obach",
   "seed": 42,
   "search": {
@@ -23,7 +23,7 @@
   "final_training": {
     "epochs": 50,
     "patience": 12,
-    "train_time": 105.76244068145752,
+    "train_time": 109.9372353553772,
     "val_metrics": {
       "rmse": 17.023221969604492,
       "mae": 9.769579887390137,

@@ -1,5 +1,5 @@
 {
-  "algo": "abc",
+  "algo": "ga",
   "dataset": "Caco2_Wang",
   "seed": 42,
   "search": {
@@ -23,7 +23,7 @@
   "final_training": {
     "epochs": 50,
     "patience": 12,
-    "train_time": 63.860750675201416,
+    "train_time": 226.28613710403442,
     "val_metrics": {
       "rmse": 0.0037324067670851946,
       "mae": 0.0027453673537820578,

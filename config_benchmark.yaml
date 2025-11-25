@@ -1,0 +1,45 @@
+# Benchmark Pipeline Configuration
+# This file configures the automated HPO and basic training pipeline
+
+# Mode: "hpo", "basic", or "both"
+mode: "both"
+
+# Datasets to run (empty list = all datasets)
+datasets:
+  - "Half_Life_Obach"
+  - "Clearance_Hepatocyte_AZ"
+  - "Clearance_Microsome_AZ"
+  - "Caco2_Wang"
+
+# HPO Configuration
+hpo:
+  enabled: true
+  # Algorithm: single string (e.g., "random"), list (e.g., ["random", "pso"]), or "all" for all algorithms
+  algorithm: "all"  # Options: "random", "pso", "ga", "sa", "hc", "abc", or ["random", "pso", ...], or "all"
+  trials: 10           # Number of HPO trials per dataset
+  epochs: 50           # Training epochs per trial
+  patience: 12         # Early stopping patience
+  batch_train: 32      # Training batch size
+  batch_eval: 64       # Evaluation batch size
+  val_fraction: 0.1    # Validation set fraction
+
+# Basic Training Configuration
+basic:
+  enabled: true
+  epochs: 100          # Training epochs
+  patience: 20         # Early stopping patience
+
+# General Settings
+general:
+  seed: 42             # Random seed
+  device: "auto"       # Device: "auto", "cpu", or "cuda"
+  no_confirm: false    # Skip confirmation prompt
+  runs_dir: "runs"     # Directory for HPO results
+  reports_dir: "reports" # Directory for benchmark reports
+
+# Report Generation
+reporting:
+  generate_reports: true
+  save_plots: true
+  plot_dpi: 300
+

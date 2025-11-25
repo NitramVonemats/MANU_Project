@@ -9,4 +9,7 @@ pandas
 numpy
 scikit-learn
 matplotlib
+seaborn
 niapy
+tabulate
+pyyaml
