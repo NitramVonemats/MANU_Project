@@ -1,0 +1,5 @@
+Dataset,Best Algo,Best R²,Best RMSE,Worst Algo,Worst R²,R² Spread,Avg Hidden Dim,Avg Layers,Algorithms
+Caco2 Wang,PSO,0.5290,0.0026,RANDOM,0.3459,0.1831,384,3.8,6
+Clearance Hepatocyte AZ,SA,-0.0975,50.2916,HC,-2.3859,2.2884,309,5.8,6
+Clearance Microsome AZ,SA,0.1004,40.8605,PSO,-10.0000,10.1004,213,6.7,6
+Half Life Obach,PSO,0.1189,20.3678,RANDOM,-0.0513,0.1703,245,5.2,6

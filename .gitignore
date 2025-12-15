@@ -1,0 +1,44 @@
+﻿# --- Python / Env / IDE ---
+.venv/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.idea/
+.vscode/
+docs/COMPLETE_DOCUMENTATION.md
+docs/DOCUMENTATION_GUIDE.md
+# --- Data / Results / Logs  ---
+data/
+results/
+logs/
+**/logs/
+*.log
+
+# --- Tests/artifacts  ---
+**/test/
+**/tests/
+
+# --- Large/binary artifacts ---
+*.tsv
+*.tab
+*.xlsx
+*.parquet
+*.jpg
+*.jpeg
+*.gif
+*.zip
+*.7z
+*.rar
+*.whl
+*.dll
+*.lib
+*.exe
+*.pkl
+*.pt
+*.onnx
+
+# --- OS trash ---
+.DS_Store
+Thumbs.db
+

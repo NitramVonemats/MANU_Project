@@ -1,0 +1,8 @@
+Dataset,Type,Task,Size,Avg MW,Avg LogP,Avg TPSA,Label Range
+Caco2_Wang,ADME,Regression,910,414.7,2.13,102.5,-7.76 - -3.51
+Clearance_Hepatocyte_AZ,ADME,Regression,1213,406.6,3.46,82.7,3.00 - 150.00
+Clearance_Microsome_AZ,ADME,Regression,1102,409.0,3.65,79.4,3.00 - 150.00
+Half_Life_Obach,ADME,Regression,667,398.9,1.88,102.9,0.07 - 1200.00
+Tox21,Toxicity,Classification,7258,274.3,2.39,58.7,Binary (0/1)
+hERG,Toxicity,Classification,655,373.6,2.72,64.5,Binary (0/1)
+ClinTox,Toxicity,Classification,1478,383.2,1.30,95.7,Binary (0/1)

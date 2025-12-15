@@ -1,0 +1,559 @@
+Found local copy...
+Loading...
+Done!
+WARNING: XGBoost not available. Install: pip install xgboost
+
+################################################################################
+# FOUNDATION DIAGNOSTICS - 20251017_144458
+################################################################################
+
+
+================================================================================
+DATASET: Half_Life_Obach
+================================================================================
+
+================================================================================
+DISTRIBUTION ANALYSIS: Half_Life_Obach (scaffold split)
+================================================================================
+  0%|          | 0/667 [00:00<?, ?it/s] 11%|#1        | 74/667 [00:00<00:00, 739.67it/s] 22%|##2       | 148/667 [00:00<00:00, 690.77it/s] 35%|###5      | 236/667 [00:00<00:00, 772.01it/s] 47%|####7     | 314/667 [00:00<00:00, 757.54it/s] 60%|#####9    | 398/667 [00:00<00:00, 784.13it/s] 78%|#######7  | 518/667 [00:00<00:00, 916.62it/s] 94%|#########4| 627/667 [00:00<00:00, 969.77it/s]100%|##########| 667/667 [00:00<00:00, 881.65it/s]
+Found local copy...
+Loading...
+Done!
+
+Dataset sizes:
+  Train: 466
+  Val:   66
+  Test:  135
+
+Target statistics (original space):
+  Train: mean=19.011, std=88.587, min=0.065, max=1200.000
+  Val:   mean=28.985, std=104.928, min=0.370, max=820.000
+  Test:  mean=10.191, std=21.699, min=0.130, max=170.000
+
+Target statistics (log space):
+  Train: mean=1.878, std=1.121
+  Test:  mean=1.755, std=0.986
+
+Kolmogorov-Smirnov test (train vs test):
+  Statistic: 0.0678
+  P-value: 0.6914
+
+  (scipy not available for KS test)
+
+Range overlap:
+  Train range: [0.065, 1200.000]
+  Test range:  [0.130, 170.000]
+  Test samples outside train range: 0/135 (0.0%)
+
+================================================================================
+SIMPLE BASELINES: Half_Life_Obach
+================================================================================
+
+Mean Baseline:
+  RMSE: 23.423, MAE: 16.596, R2: -0.165
+
+Median Baseline:
+  RMSE: 22.511, MAE: 8.368, R2: -0.076
+
+================================================================================
+ML BASELINES: Half_Life_Obach
+================================================================================
+
+Generating features...
+  - RDKit descriptors (30 features)
+  - Morgan fingerprints (2048 bits, radius=2)
+  - Combined features (descriptors + fingerprints)
+
+Training RF with Descriptors...
+  RMSE: 22.187, MAE: 8.526, R2: -0.046, Corr: nan
+
+Training RF with Fingerprints...
+  RMSE: 21.308, MAE: 7.794, R2: 0.036, Corr: 0.309
+
+Training RF with Combined...
+  RMSE: 21.320, MAE: 7.721, R2: 0.035, Corr: 0.308
+
+Training RF_deep with Descriptors...
+  RMSE: 22.193, MAE: 8.520, R2: -0.046, Corr: 0.000
+
+Training RF_deep with Fingerprints...
+  RMSE: 21.312, MAE: 7.745, R2: 0.035, Corr: 0.306
+
+Training RF_deep with Combined...
+  RMSE: 21.248, MAE: 7.723, R2: 0.041, Corr: 0.312
+
+Training GBM with Descriptors...
+  RMSE: 22.191, MAE: 8.522, R2: -0.046, Corr: 0.000
+
+Training GBM with Fingerprints...
+  RMSE: 21.223, MAE: 8.072, R2: 0.043, Corr: 0.266
+
+Training GBM with Combined...
+  RMSE: 21.635, MAE: 8.349, R2: 0.006, Corr: 0.261
+
+============================================================
+BEST BASELINES:
+============================================================
+GBM_Fingerprints               RMSE=21.223  R2= 0.043  Corr= 0.266
+RF_deep_Combined               RMSE=21.248  R2= 0.041  Corr= 0.312
+RF_Fingerprints                RMSE=21.308  R2= 0.036  Corr= 0.309
+
+================================================================================
+SPLIT METHOD COMPARISON: Half_Life_Obach
+================================================================================
+
+--- SCAFFOLD SPLIT ---
+
+================================================================================
+DISTRIBUTION ANALYSIS: Half_Life_Obach (scaffold split)
+================================================================================
+  0%|          | 0/667 [00:00<?, ?it/s] 28%|##8       | 188/667 [00:00<00:00, 1876.45it/s] 62%|######1   | 412/667 [00:00<00:00, 2088.04it/s] 93%|#########3| 621/667 [00:00<00:00, 2004.22it/s]100%|##########| 667/667 [00:00<00:00, 1991.53it/s]
+Found local copy...
+Loading...
+Done!
+Found local copy...
+Loading...
+Done!
+
+Dataset sizes:
+  Train: 466
+  Val:   66
+  Test:  135
+
+Target statistics (original space):
+  Train: mean=19.011, std=88.587, min=0.065, max=1200.000
+  Val:   mean=28.985, std=104.928, min=0.370, max=820.000
+  Test:  mean=10.191, std=21.699, min=0.130, max=170.000
+
+Target statistics (log space):
+  Train: mean=1.878, std=1.121
+  Test:  mean=1.755, std=0.986
+
+Kolmogorov-Smirnov test (train vs test):
+  Statistic: 0.0678
+  P-value: 0.6914
+
+  (scipy not available for KS test)
+
+Range overlap:
+  Train range: [0.065, 1200.000]
+  Test range:  [0.130, 170.000]
+  Test samples outside train range: 0/135 (0.0%)
+
+--- RANDOM SPLIT ---
+
+================================================================================
+DISTRIBUTION ANALYSIS: Half_Life_Obach (random split)
+================================================================================
+
+Dataset sizes:
+  Train: 467
+  Val:   67
+  Test:  133
+
+Target statistics (original space):
+  Train: mean=15.353, std=73.096, min=0.120, max=1200.000
+  Val:   mean=15.032, std=23.939, min=0.350, max=150.000
+  Test:  mean=29.858, std=119.768, min=0.065, max=850.000
+
+Target statistics (log space):
+  Train: mean=1.822, std=1.055
+  Test:  mean=1.955, std=1.269
+
+Kolmogorov-Smirnov test (train vs test):
+  Statistic: 0.0638
+  P-value: 0.7638
+
+  (scipy not available for KS test)
+
+Range overlap:
+  Train range: [0.120, 1200.000]
+  Test range:  [0.065, 850.000]
+  Test samples outside train range: 1/133 (0.8%)
+
+============================================================
+SPLIT COMPARISON (Mean Baseline R2):
+============================================================
+scaffold        R2=-0.165  RMSE=23.423
+random          R2=-0.015  RMSE=120.643
+
+
+================================================================================
+DATASET: Clearance_Hepatocyte_AZ
+================================================================================
+
+================================================================================
+DISTRIBUTION ANALYSIS: Clearance_Hepatocyte_AZ (scaffold split)
+================================================================================
+  0%|          | 0/1213 [00:00<?, ?it/s] 13%|#3        | 161/1213 [00:00<00:00, 1605.26it/s] 28%|##8       | 342/1213 [00:00<00:00, 1723.08it/s] 42%|####2     | 515/1213 [00:00<00:00, 1578.92it/s] 56%|#####5    | 675/1213 [00:00<00:00, 1553.24it/s] 69%|######8   | 832/1213 [00:00<00:00, 1461.90it/s] 83%|########3 | 1007/1213 [00:00<00:00, 1550.01it/s] 97%|#########7| 1177/1213 [00:00<00:00, 1592.61it/s]100%|##########| 1213/1213 [00:00<00:00, 1576.96it/s]
+Found local copy...
+Loading...
+Done!
+
+Dataset sizes:
+  Train: 849
+  Val:   121
+  Test:  243
+
+Target statistics (original space):
+  Train: mean=44.035, std=50.266, min=3.000, max=150.000
+  Val:   mean=38.811, std=49.985, min=3.000, max=150.000
+  Test:  mean=40.972, std=48.006, min=3.000, max=150.000
+
+Target statistics (log space):
+  Train: mean=3.105, std=1.247
+  Test:  mean=3.025, std=1.247
+
+Kolmogorov-Smirnov test (train vs test):
+  Statistic: 0.0555
+  P-value: 0.5813
+
+  (scipy not available for KS test)
+
+Range overlap:
+  Train range: [3.000, 150.000]
+  Test range:  [3.000, 150.000]
+  Test samples outside train range: 0/243 (0.0%)
+
+================================================================================
+SIMPLE BASELINES: Clearance_Hepatocyte_AZ
+================================================================================
+
+Mean Baseline:
+  RMSE: 48.103, MAE: 39.727, R2: -0.004
+
+Median Baseline:
+  RMSE: 52.589, MAE: 33.747, R2: -0.200
+
+================================================================================
+ML BASELINES: Clearance_Hepatocyte_AZ
+================================================================================
+
+Generating features...
+  - RDKit descriptors (30 features)
+  - Morgan fingerprints (2048 bits, radius=2)
+  - Combined features (descriptors + fingerprints)
+
+Training RF with Descriptors...
+  RMSE: 51.857, MAE: 33.869, R2: -0.167, Corr: -0.000
+
+Training RF with Fingerprints...
+  RMSE: 49.294, MAE: 32.201, R2: -0.054, Corr: 0.275
+
+Training RF with Combined...
+  RMSE: 49.331, MAE: 32.223, R2: -0.056, Corr: 0.274
+
+Training RF_deep with Descriptors...
+  RMSE: 51.842, MAE: 33.872, R2: -0.166, Corr: -0.000
+
+Training RF_deep with Fingerprints...
+  RMSE: 49.680, MAE: 32.404, R2: -0.071, Corr: 0.267
+
+Training RF_deep with Combined...
+  RMSE: 49.619, MAE: 32.314, R2: -0.068, Corr: 0.270
+
+Training GBM with Descriptors...
+  RMSE: 51.875, MAE: 33.865, R2: -0.168, Corr: -0.000
+
+Training GBM with Fingerprints...
+  RMSE: 47.841, MAE: 31.685, R2: 0.007, Corr: 0.329
+
+Training GBM with Combined...
+  RMSE: 47.998, MAE: 31.505, R2: 0.000, Corr: 0.326
+
+============================================================
+BEST BASELINES:
+============================================================
+GBM_Fingerprints               RMSE=47.841  R2= 0.007  Corr= 0.329
+GBM_Combined                   RMSE=47.998  R2= 0.000  Corr= 0.326
+RF_Fingerprints                RMSE=49.294  R2=-0.054  Corr= 0.275
+
+================================================================================
+SPLIT METHOD COMPARISON: Clearance_Hepatocyte_AZ
+================================================================================
+
+--- SCAFFOLD SPLIT ---
+
+================================================================================
+DISTRIBUTION ANALYSIS: Clearance_Hepatocyte_AZ (scaffold split)
+================================================================================
+  0%|          | 0/1213 [00:00<?, ?it/s] 19%|#8        | 225/1213 [00:00<00:00, 2243.02it/s] 37%|###7      | 450/1213 [00:00<00:00, 1987.99it/s] 55%|#####5    | 668/1213 [00:00<00:00, 2068.97it/s] 72%|#######2  | 877/1213 [00:00<00:00, 2036.38it/s] 91%|#########1| 1108/1213 [00:00<00:00, 2127.74it/s]100%|##########| 1213/1213 [00:00<00:00, 2099.22it/s]
+Found local copy...
+Loading...
+Done!
+Found local copy...
+Loading...
+Done!
+
+Dataset sizes:
+  Train: 849
+  Val:   121
+  Test:  243
+
+Target statistics (original space):
+  Train: mean=44.035, std=50.266, min=3.000, max=150.000
+  Val:   mean=38.811, std=49.985, min=3.000, max=150.000
+  Test:  mean=40.972, std=48.006, min=3.000, max=150.000
+
+Target statistics (log space):
+  Train: mean=3.105, std=1.247
+  Test:  mean=3.025, std=1.247
+
+Kolmogorov-Smirnov test (train vs test):
+  Statistic: 0.0555
+  P-value: 0.5813
+
+  (scipy not available for KS test)
+
+Range overlap:
+  Train range: [3.000, 150.000]
+  Test range:  [3.000, 150.000]
+  Test samples outside train range: 0/243 (0.0%)
+
+--- RANDOM SPLIT ---
+
+================================================================================
+DISTRIBUTION ANALYSIS: Clearance_Hepatocyte_AZ (random split)
+================================================================================
+
+Dataset sizes:
+  Train: 849
+  Val:   121
+  Test:  243
+
+Target statistics (original space):
+  Train: mean=42.772, std=49.733, min=3.000, max=150.000
+  Val:   mean=42.639, std=50.203, min=3.000, max=150.000
+  Test:  mean=43.479, std=49.962, min=3.000, max=150.000
+
+Target statistics (log space):
+  Train: mean=3.072, std=1.242
+  Test:  mean=3.086, std=1.254
+
+Kolmogorov-Smirnov test (train vs test):
+  Statistic: 0.0395
+  P-value: 0.9165
+
+  (scipy not available for KS test)
+
+Range overlap:
+  Train range: [3.000, 150.000]
+  Test range:  [3.000, 150.000]
+  Test samples outside train range: 0/243 (0.0%)
+
+============================================================
+SPLIT COMPARISON (Mean Baseline R2):
+============================================================
+scaffold        R2=-0.004  RMSE=48.103
+random          R2=-0.000  RMSE=49.967
+
+
+================================================================================
+DATASET: Clearance_Microsome_AZ
+================================================================================
+
+================================================================================
+DISTRIBUTION ANALYSIS: Clearance_Microsome_AZ (scaffold split)
+================================================================================
+  0%|          | 0/1102 [00:00<?, ?it/s] 18%|#7        | 196/1102 [00:00<00:00, 1956.15it/s] 36%|###5      | 392/1102 [00:00<00:00, 1899.62it/s] 54%|#####3    | 595/1102 [00:00<00:00, 1955.83it/s] 74%|#######3  | 815/1102 [00:00<00:00, 2048.92it/s] 94%|#########3| 1035/1102 [00:00<00:00, 2100.61it/s]100%|##########| 1102/1102 [00:00<00:00, 2042.18it/s]
+Found local copy...
+Loading...
+Done!
+
+Dataset sizes:
+  Train: 771
+  Val:   110
+  Test:  221
+
+Target statistics (original space):
+  Train: mean=36.609, std=45.517, min=3.000, max=150.000
+  Val:   mean=28.284, std=41.358, min=3.000, max=150.000
+  Test:  mean=28.848, std=43.080, min=3.000, max=150.000
+
+Target statistics (log space):
+  Train: mean=2.889, std=1.243
+  Test:  mean=2.555, std=1.236
+
+Kolmogorov-Smirnov test (train vs test):
+  Statistic: 0.1548
+  P-value: 0.0005
+
+  (scipy not available for KS test)
+
+Range overlap:
+  Train range: [3.000, 150.000]
+  Test range:  [3.000, 150.000]
+  Test samples outside train range: 0/221 (0.0%)
+
+================================================================================
+SIMPLE BASELINES: Clearance_Microsome_AZ
+================================================================================
+
+Mean Baseline:
+  RMSE: 43.774, MAE: 35.352, R2: -0.032
+
+Median Baseline:
+  RMSE: 45.251, MAE: 26.167, R2: -0.103
+
+================================================================================
+ML BASELINES: Clearance_Microsome_AZ
+================================================================================
+
+Generating features...
+  - RDKit descriptors (30 features)
+  - Morgan fingerprints (2048 bits, radius=2)
+  - Combined features (descriptors + fingerprints)
+
+Training RF with Descriptors...
+  RMSE: 44.689, MAE: 26.744, R2: -0.076, Corr: -0.000
+
+Training RF with Fingerprints...
+  RMSE: 40.430, MAE: 22.421, R2: 0.119, Corr: 0.438
+
+Training RF with Combined...
+  RMSE: 40.232, MAE: 22.321, R2: 0.128, Corr: 0.447
+
+Training RF_deep with Descriptors...
+  RMSE: 44.686, MAE: 26.748, R2: -0.076, Corr: 0.000
+
+Training RF_deep with Fingerprints...
+  RMSE: 40.178, MAE: 22.300, R2: 0.130, Corr: 0.446
+
+Training RF_deep with Combined...
+  RMSE: 40.121, MAE: 22.203, R2: 0.133, Corr: 0.448
+
+Training GBM with Descriptors...
+  RMSE: 44.685, MAE: 26.749, R2: -0.076, Corr: nan
+
+Training GBM with Fingerprints...
+  RMSE: 43.300, MAE: 24.399, R2: -0.010, Corr: 0.284
+
+Training GBM with Combined...
+  RMSE: 43.823, MAE: 24.501, R2: -0.035, Corr: 0.274
+
+============================================================
+BEST BASELINES:
+============================================================
+RF_deep_Combined               RMSE=40.121  R2= 0.133  Corr= 0.448
+RF_deep_Fingerprints           RMSE=40.178  R2= 0.130  Corr= 0.446
+RF_Combined                    RMSE=40.232  R2= 0.128  Corr= 0.447
+
+================================================================================
+SPLIT METHOD COMPARISON: Clearance_Microsome_AZ
+================================================================================
+
+--- SCAFFOLD SPLIT ---
+
+================================================================================
+DISTRIBUTION ANALYSIS: Clearance_Microsome_AZ (scaffold split)
+================================================================================
+  0%|          | 0/1102 [00:00<?, ?it/s] 14%|#4        | 157/1102 [00:00<00:00, 1557.87it/s] 28%|##8       | 313/1102 [00:00<00:00, 1253.64it/s] 48%|####7     | 525/1102 [00:00<00:00, 1600.06it/s] 66%|######6   | 729/1102 [00:00<00:00, 1759.27it/s] 83%|########2 | 911/1102 [00:00<00:00, 1757.41it/s] 99%|#########9| 1091/1102 [00:00<00:00, 1734.06it/s]100%|##########| 1102/1102 [00:00<00:00, 1674.04it/s]
+Found local copy...
+Loading...
+Done!
+
+Dataset sizes:
+  Train: 771
+  Val:   110
+  Test:  221
+
+Target statistics (original space):
+  Train: mean=36.609, std=45.517, min=3.000, max=150.000
+  Val:   mean=28.284, std=41.358, min=3.000, max=150.000
+  Test:  mean=28.848, std=43.080, min=3.000, max=150.000
+
+Target statistics (log space):
+  Train: mean=2.889, std=1.243
+  Test:  mean=2.555, std=1.236
+
+Kolmogorov-Smirnov test (train vs test):
+  Statistic: 0.1548
+  P-value: 0.0005
+
+  (scipy not available for KS test)
+
+Range overlap:
+  Train range: [3.000, 150.000]
+  Test range:  [3.000, 150.000]
+  Test samples outside train range: 0/221 (0.0%)
+
+--- RANDOM SPLIT ---
+
+================================================================================
+DISTRIBUTION ANALYSIS: Clearance_Microsome_AZ (random split)
+================================================================================
+
+Dataset sizes:
+  Train: 772
+  Val:   110
+  Test:  220
+
+Target statistics (original space):
+  Train: mean=34.619, std=45.236, min=3.000, max=150.000
+  Val:   mean=34.165, std=44.093, min=3.000, max=150.000
+  Test:  mean=32.856, std=43.493, min=3.000, max=150.000
+
+Target statistics (log space):
+  Train: mean=2.805, std=1.245
+  Test:  mean=2.759, std=1.236
+
+Kolmogorov-Smirnov test (train vs test):
+  Statistic: 0.0341
+  P-value: 0.9840
+
+  (scipy not available for KS test)
+
+Range overlap:
+  Train range: [3.000, 150.000]
+  Test range:  [3.000, 150.000]
+  Test samples outside train range: 0/220 (0.0%)
+
+============================================================
+SPLIT COMPARISON (Mean Baseline R2):
+============================================================
+scaffold        R2=-0.032  RMSE=43.774
+random          R2=-0.002  RMSE=43.529
+
+================================================================================
+RESULTS SAVED: diagnostic_results_20251017_144458.csv
+================================================================================
+
+
+SUMMARY - BEST BASELINES PER DATASET:
+================================================================================
+
+Half_Life_Obach:
+  Best model: GBM_Fingerprints
+  RMSE: 21.223
+  R2: 0.043
+  Correlation: 0.266
+
+Clearance_Hepatocyte_AZ:
+  Best model: GBM_Fingerprints
+  RMSE: 47.841
+  R2: 0.007
+  Correlation: 0.329
+
+Clearance_Microsome_AZ:
+  Best model: RF_deep_Combined
+  RMSE: 40.121
+  R2: 0.133
+  Correlation: 0.448
+
+
+================================================================================
+DIAGNOSTIC COMPLETE
+================================================================================
+
+KEY INSIGHTS:
+Traceback (most recent call last):
+  File "C:\Users\martinsta\PycharmProjects\MANU_Project\GNN_test\diagnose_foundation.py", line 430, in <module>
+    run_full_diagnostics()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\martinsta\PycharmProjects\MANU_Project\GNN_test\diagnose_foundation.py", line 423, in run_full_diagnostics
+    print("  1. Check if test R\xb2 is negative for simple baselines too")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\martinsta\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1251.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\xb2' in position 20: character maps to <undefined>

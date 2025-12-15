@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adme-gnn"
+version = "3.0.0"
+description = "Graph Neural Networks for ADME Property Prediction"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "MANU Project"}
+]
+keywords = ["machine-learning", "drug-discovery", "graph-neural-networks", "adme", "molecular-property-prediction"]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/MANU_Project"
+Documentation = "https://github.com/yourusername/MANU_Project/docs"
+Repository = "https://github.com/yourusername/MANU_Project"
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

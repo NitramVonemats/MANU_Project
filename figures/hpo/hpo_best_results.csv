@@ -1,0 +1,5 @@
+Dataset,Best Algorithm,Test RMSE,Test R²,Val RMSE,Train Time,Hidden Dim,Num Layers,Learning Rate
+Caco2_Wang,PSO,0.0026,0.5290,0.0038,115.6s,384,4,1.9e-03
+Clearance_Hepatocyte_AZ,SA,50.2916,-0.0975,50.8360,75.1s,384,5,8.2e-03
+Clearance_Microsome_AZ,SA,40.8605,0.1004,38.0799,60.1s,384,5,8.0e-03
+Half_Life_Obach,PSO,20.3678,0.1189,15.6429,52.2s,256,5,8.8e-04
