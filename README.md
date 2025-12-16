@@ -16,8 +16,18 @@ pip install -r requirements.txt
 cd scripts
 python run_all_analyses.py
 
-# Run HPO
-python run_hpo.py --dataset Caco2_Wang --algorithm abc --trials 50
+# Run HPO (GNN)
+python scripts/run_hpo.py --dataset Caco2_Wang --algorithm abc --trials 50
+
+# Run HPO (Foundation Models)
+python scripts/run_foundation_hpo.py --model morgan --dataset Caco2_Wang --algo pso --trials 30
+
+# Run EVERYTHING (Benchmarks for GNN + Foundation Models)
+# 1. Run all GNN benchmarks (4 ADME + 3 Toxicity datasets)
+python scripts/run_all_hpo.py --config config_benchmark.yaml
+
+# 2. Run all Foundation Model benchmarks (4 ADME + 3 Toxicity datasets)
+python scripts/run_foundation_batch.py --config config_foundation_benchmark.yaml
 ```
 
 ---

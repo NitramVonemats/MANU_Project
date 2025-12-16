@@ -4,12 +4,17 @@
 # Mode: "hpo", "basic", or "both"
 mode: "both"
 
-# Datasets to run (empty list = all datasets)
+# Datasets to run (7 total: 4 ADME + 3 Toxicity)
 datasets:
+  # ADME (regression)
   - "Half_Life_Obach"
   - "Clearance_Hepatocyte_AZ"
   - "Clearance_Microsome_AZ"
   - "Caco2_Wang"
+  # Toxicity (classification)
+  - "tox21"
+  - "herg"
+  - "clintox"
 
 # HPO Configuration
 hpo:
