@@ -1,0 +1,45 @@
+# Foundation Model Benchmark Configuration
+# =========================================
+
+# Models to benchmark
+models:
+  - morgan       # Morgan Fingerprint (ECFP)
+  - chemberta    # ChemBERTa transformer
+  # - biomed     # IBM BioMed (slow, uncomment if needed)
+  # - molclr     # MolCLR contrastive learning
+  # - mole       # MolE embeddings (requires weights)
+
+# Datasets to test (7 total: 4 ADME + 3 Toxicity)
+datasets:
+  # ADME (regression)
+  - Caco2_Wang
+  - Half_Life_Obach
+  - Clearance_Hepatocyte_AZ
+  - Clearance_Microsome_AZ
+  
+  # Toxicity (classification)
+  - tox21
+  - herg
+  - clintox
+
+# HPO settings
+hpo:
+  enabled: true
+  trials: 30                    # Number of HPO trials per model+dataset
+  max_iter: 500                 # Max iterations for sklearn predictor
+  algorithms:                   # Algorithms to use
+    - random                    # Random search (baseline)
+    - pso                       # Particle Swarm Optimization
+    # - ga                      # Genetic Algorithm
+    # - sa                      # Simulated Annealing
+    # - hc                      # Hill Climbing
+    # - abc                     # Artificial Bee Colony
+
+# Device settings
+device: auto                    # "auto", "cuda", or "cpu"
+
+# Random seed
+seed: 42
+
+# Output directory
+output_dir: runs/foundation

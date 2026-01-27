@@ -1,0 +1,3 @@
+Dataset,Best Hidden Dim,Best Num Layers,Best LR,Best Weight Decay,Best Val Score,Algorithm,Total Trials
+herg,384,8,1.28e-03,1.65e-04,0.8889,pso,200
+caco2_wang,64,2,1.00e-04,1.00e-06,-0.0031,pso,200

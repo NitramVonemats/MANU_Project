@@ -1,0 +1,7 @@
+Dataset,Type,Task,Property,Size,Train,Val,Test
+Caco2 Wang,ADME,Regression,Permeability,819,574,63,182
+Half-Life Obach,ADME,Regression,Half-life,601,420,46,135
+Clearance Hepatocyte,ADME,Regression,Clearance,1092,765,84,243
+Clearance Microsome,ADME,Regression,Clearance,992,694,77,221
+Tox21,Toxicity,Classification,NR Toxicity,6533,4572,508,1453
+hERG,Toxicity,Classification,Cardiac Toxicity,590,413,45,132

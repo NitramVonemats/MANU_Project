@@ -1,0 +1,3 @@
+Dataset,Best Algorithm,Test AUC-ROC,Test F1,Test Accuracy,Val AUC-ROC,Train Time,Hidden Dim,Num Layers
+tox21,SA,0.7425,0.4554,0.9621,0.8051,1039.6s,384,5
+herg,ABC,0.8246,0.8087,0.7348,0.8623,33.9s,512,5

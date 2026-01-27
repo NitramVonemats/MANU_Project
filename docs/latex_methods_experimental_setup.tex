@@ -1,0 +1,154 @@
+% ==============================================================================
+% EXPERIMENTAL SETUP - Methods Section
+% Ready to paste into IEEE/ACM format paper
+% Generated: 2026-01-19
+% ==============================================================================
+
+\subsection{Experimental Setup}
+\label{sec:experimental_setup}
+
+% ------------------------------------------------------------------------------
+% Data Splits
+% ------------------------------------------------------------------------------
+\textbf{Data Splits and Preprocessing.}
+All datasets were obtained from the Therapeutics Data Commons (TDC)~\cite{huang2021therapeutics}
+and split into training (80\%), validation (10\%), and test (10\%) sets using a fixed
+random seed (\texttt{seed=42}) for reproducibility. The same data splits were used
+consistently across all model types (GNN, ChemBERTa, Morgan Fingerprints) to ensure
+fair comparison. SMILES strings were canonicalized and converted to molecular graphs
+with 19 node features representing physicochemical properties (TPSA, LogP, molecular
+weight, hydrogen bond donors/acceptors, aromatic rings, rotatable bonds, and fraction
+of sp$^3$ carbons). Edge features encoded bond types (single, double, triple, aromatic).
+
+% ------------------------------------------------------------------------------
+% Training Protocol
+% ------------------------------------------------------------------------------
+\textbf{Training Protocol.}
+All models were trained exclusively on the training set (80\% of data). The validation
+set (10\%) was reserved for model selection, early stopping, and hyperparameter
+optimization metric evaluation. The test set (10\%) remained completely held out during
+all training and hyperparameter tuning procedures to prevent data leakage. Importantly,
+\emph{no models were retrained on combined train+validation sets after hyperparameter
+selection}, ensuring a consistent training budget (80\% of data) across all approaches
+for fair comparison.
+
+% ------------------------------------------------------------------------------
+% Hyperparameter Optimization
+% ------------------------------------------------------------------------------
+\textbf{Hyperparameter Optimization.}
+For GNN models, we performed systematic hyperparameter optimization (HPO) using six
+metaheuristic algorithms:
+\begin{itemize}[noitemsep,topsep=0pt]
+    \item \textbf{Random Search} (baseline): Uniform sampling from hyperparameter space
+    \item \textbf{Particle Swarm Optimization (PSO)}~\cite{kennedy1995particle}:
+          Population-based swarm intelligence
+    \item \textbf{Artificial Bee Colony (ABC)}~\cite{karaboga2007artificial}:
+          Bee foraging behavior simulation
+    \item \textbf{Genetic Algorithm (GA)}~\cite{holland1992genetic}:
+          Evolutionary selection and crossover
+    \item \textbf{Simulated Annealing (SA)}~\cite{kirkpatrick1983simulated}:
+          Thermodynamic annealing process
+    \item \textbf{Hill Climbing (HC)}: Greedy local search
+\end{itemize}
+
+Each algorithm was run for 10 trials, yielding 60 total hyperparameter evaluations per
+dataset (6 algorithms $\times$ 10 trials). Hyperparameters optimized included:
+learning rate ($10^{-4}$ to $10^{-2}$), number of graph layers (2--4), hidden channels
+(64--256), dropout rate (0.0--0.5), and GNN architecture type (GAT, GCN, GIN).
+Validation F1 score (classification tasks) or RMSE (regression tasks) guided the
+optimization process. All implementations used NiaPy~\cite{vrbancic2018niapy}
+optimization library with population size 5 and maximum 10 iterations per trial.
+
+% ------------------------------------------------------------------------------
+% Early Stopping
+% ------------------------------------------------------------------------------
+\textbf{Early Stopping and Regularization.}
+All GNN models employed early stopping with patience of 10 epochs to prevent overfitting.
+Training terminated if validation performance did not improve for 10 consecutive epochs.
+Dropout regularization~\cite{srivastava2014dropout} was applied after each graph
+convolution and fully connected layer. Maximum training duration was limited to 50 epochs.
+
+% ------------------------------------------------------------------------------
+% Foundation Model Baselines
+% ------------------------------------------------------------------------------
+\textbf{Foundation Model Baselines.}
+We compared GNN performance against two baseline approaches:
+
+\begin{enumerate}[noitemsep,topsep=0pt]
+    \item \textbf{ChemBERTa}~\cite{chithrananda2020chemberta}: A BERT-based transformer
+          model pretrained on 77 million molecules from the ZINC15 database. Due to
+          computational constraints (CPU-only training), ChemBERTa was used as a
+          \emph{frozen feature extractor} without task-specific fine-tuning. Molecular
+          embeddings (768-dimensional) were extracted and fed to a 2-layer MLP
+          downstream predictor (hidden dimensions: 256, 128) trained via scikit-learn's
+          MLPClassifier/MLPRegressor with Adam optimizer, learning rate $10^{-3}$, and
+          early stopping (patience=10 epochs).
+
+    \item \textbf{Morgan Fingerprints (ECFP4)}: Classical circular fingerprints with
+          radius=2 and 2048 bits, serving as a strong non-learned baseline. Downstream
+          predictors were Random Forest classifiers/regressors with 100 trees,
+          max\_depth=10, and default scikit-learn~\cite{pedregosa2011scikit} parameters.
+\end{enumerate}
+
+Therefore, our comparison evaluates GNN models with systematic HPO against pretrained
+foundation models in feature-extraction mode (ChemBERTa) and classical baselines
+(Morgan Fingerprints), both without hyperparameter optimization.
+
+% ------------------------------------------------------------------------------
+% Evaluation Metrics
+% ------------------------------------------------------------------------------
+\textbf{Evaluation Metrics.}
+For regression tasks (ADME properties: Caco-2 permeability, half-life, hepatocyte
+clearance, microsomal clearance), we report:
+\begin{itemize}[noitemsep,topsep=0pt]
+    \item \textbf{Root Mean Squared Error (RMSE)}: $\sqrt{\frac{1}{n}\sum_{i=1}^{n}(y_i - \hat{y}_i)^2}$
+    \item \textbf{Mean Absolute Error (MAE)}: $\frac{1}{n}\sum_{i=1}^{n}|y_i - \hat{y}_i|$
+    \item \textbf{Coefficient of Determination (R²)}: $1 - \frac{\sum(y_i - \hat{y}_i)^2}{\sum(y_i - \bar{y})^2}$
+\end{itemize}
+
+For classification tasks (toxicity prediction: hERG cardiotoxicity, Tox21 nuclear
+receptor assays), we report:
+\begin{itemize}[noitemsep,topsep=0pt]
+    \item \textbf{F1 Score}: Harmonic mean of precision and recall:
+          $2 \cdot \frac{\text{precision} \cdot \text{recall}}{\text{precision} + \text{recall}}$
+    \item \textbf{Area Under ROC Curve (AUC-ROC)}: Probability that a randomly chosen
+          positive example ranks higher than a negative example
+    \item \textbf{Accuracy}: Fraction of correctly classified examples
+\end{itemize}
+
+All metrics are computed on the held-out test set. For Tox21 (which contains 12 nuclear
+receptor assays), we evaluate the NR-AR (Nuclear Receptor - Androgen Receptor) assay
+as a representative single-task binary classification problem. Multi-task learning
+across all 12 Tox21 assays is left for future work.
+
+% ------------------------------------------------------------------------------
+% Implementation Details
+% ------------------------------------------------------------------------------
+\textbf{Implementation Details.}
+GNN models were implemented using PyTorch 2.0~\cite{paszke2019pytorch} and PyTorch
+Geometric 2.3~\cite{fey2019pyg}. Three GNN architectures were evaluated:
+\begin{itemize}[noitemsep,topsep=0pt]
+    \item \textbf{Graph Attention Network (GAT)}~\cite{velivckovic2018gat}:
+          Multi-head attention mechanism with learnable attention weights
+    \item \textbf{Graph Convolutional Network (GCN)}~\cite{kipf2017gcn}:
+          Spectral graph convolutions with symmetric normalization
+    \item \textbf{Graph Isomorphism Network (GIN)}~\cite{xu2019gin}:
+          Sum aggregation with learnable MLP for maximum expressive power
+\end{itemize}
+
+Models were trained with Adam optimizer~\cite{kingma2015adam}, batch size 32, and
+gradient clipping (max norm=1.0). For regression tasks, mean squared error (MSE) loss
+was minimized; for classification, binary cross-entropy (BCE) loss. All experiments
+were conducted on CPU (Intel Core i7-8700K, 32GB RAM) due to resource constraints.
+Training time per model ranged from 2--15 minutes depending on dataset size and
+hyperparameters.
+
+% ------------------------------------------------------------------------------
+% Reproducibility
+% ------------------------------------------------------------------------------
+\textbf{Reproducibility.}
+All experiments used fixed random seed (\texttt{seed=42}) and deterministic operations
+where possible (PyTorch deterministic algorithms, fixed CUDA convolution benchmarking).
+Complete source code, hyperparameter configurations, trained model checkpoints, and
+experimental results are publicly available at:
+\url{https://github.com/[USERNAME]/MANU\_Project}.

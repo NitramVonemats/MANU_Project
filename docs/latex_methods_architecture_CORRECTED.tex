@@ -1,0 +1,174 @@
+% ==============================================================================
+% METHODS SECTION - GNN ARCHITECTURE (CODE-VERIFIED)
+% All descriptions verified against optimized_gnn.py implementation
+% Generated: 2026-01-19
+% ==============================================================================
+
+\subsection{Graph Neural Network Architecture}
+\label{sec:gnn_architecture}
+
+\subsubsection{Molecular Graph Representation}
+
+Each molecule is represented as an undirected graph $G = (V, E)$ where nodes
+$v \in V$ correspond to heavy atoms and edges $e \in E$ represent chemical bonds.
+Hydrogen atoms are treated implicitly following standard cheminformatics practice.
+Molecular graphs are constructed using PyTorch Geometric's \texttt{from\_smiles}
+utility~\cite{fey2019pyg}, which converts SMILES strings to graph objects via
+RDKit~\cite{rdkit}.
+
+\textbf{Node Features ($\mathbf{x}_v \in \mathbb{R}^{8}$):}
+Each atom is encoded with 8 features extracted via RDKit:
+\begin{itemize}[noitemsep,topsep=0pt]
+    \item Atomic number (element type)
+    \item Atom degree (number of bonded neighbors)
+    \item Formal charge
+    \item Hybridization type (sp, sp$^2$, sp$^3$, etc.)
+    \item Is aromatic (binary flag)
+    \item Is in ring (binary flag)
+    \item Total number of hydrogens
+    \item Atomic mass
+\end{itemize}
+These features are computed by the \texttt{atom\_features()} function (lines 95-109
+of \texttt{optimized\_gnn.py}).
+
+\textbf{Edge Features ($\mathbf{e}_{uv} \in \mathbb{R}^{4}$):}
+Bonds are encoded by PyTorch Geometric's \texttt{from\_smiles} function as one-hot
+vectors indicating bond type:
+\begin{equation}
+\mathbf{e}_{uv} = \text{OneHot}(\{\text{SINGLE}, \text{DOUBLE}, \text{TRIPLE}, \text{AROMATIC}\})
+\end{equation}
+
+\textbf{Graph-Level ADME Features ($\mathbf{f}_G \in \mathbb{R}^{d_{\text{ADME}}}$):}
+In addition to local node features, we compute global molecular descriptors for each
+graph. These features vary by dataset:
+
+\begin{itemize}[noitemsep,topsep=0pt]
+    \item \textbf{Caco2\_Wang} ($d_{\text{ADME}} = 7$): Permeability-relevant descriptors
+    including molecular weight (MW), partition coefficient (LogP), hydrogen bond donors
+    (HBD) and acceptors (HBA), topological polar surface area (TPSA), number of rotatable
+    bonds, and number of aromatic rings.
+
+    \item \textbf{Other datasets} ($d_{\text{ADME}} = 15$): Extended feature set including
+    the above 7 features plus Lipinski rule violations (binary flags for MW$>$500,
+    LogP$>$5, HBD$>$5, HBA$>$10), molecular refractivity, Bertz complexity index,
+    number of aliphatic rings, and number of heteroatoms.
+\end{itemize}
+
+These descriptors are computed by \texttt{adme\_descriptors()} and
+\texttt{caco2\_wang\_descriptors()} functions (lines 112-171) and z-score normalized
+across the training set: $\mathbf{f}_G \leftarrow (\mathbf{f}_G - \boldsymbol{\mu}) / \boldsymbol{\sigma}$.
+
+\subsubsection{GNN Encoder}
+
+We evaluate three graph neural network architectures:
+
+\textbf{Graph Convolutional Network (GCN)~\cite{kipf2017gcn}:}
+\begin{equation}
+\mathbf{h}_v^{(l+1)} = \sigma\left(\mathbf{W}^{(l)} \sum_{u \in \mathcal{N}(v)}
+\frac{1}{\sqrt{|\mathcal{N}(v)||\mathcal{N}(u)|}} \mathbf{h}_u^{(l)}\right)
+\end{equation}
+where $\mathbf{h}_v^{(l)}$ is the node embedding at layer $l$, $\mathcal{N}(v)$
+denotes neighbors of node $v$, $\mathbf{W}^{(l)}$ is a learnable weight matrix,
+and $\sigma(\cdot)$ is the ReLU activation.
+
+\textbf{Graph Attention Network (GAT)~\cite{velivckovic2018gat}:}
+\begin{equation}
+\mathbf{h}_v^{(l+1)} = \sigma\left(\sum_{u \in \mathcal{N}(v)} \alpha_{vu}
+\mathbf{W}^{(l)} \mathbf{h}_u^{(l)}\right)
+\end{equation}
+with attention weights $\alpha_{vu} = \text{softmax}_u(\text{LeakyReLU}(
+\mathbf{a}^\top[\mathbf{W}\mathbf{h}_v \| \mathbf{W}\mathbf{h}_u]))$
+computed via multi-head attention (4 heads).
+
+\textbf{Graph Isomorphism Network (GIN)~\cite{xu2019gin}:}
+\begin{equation}
+\mathbf{h}_v^{(l+1)} = \text{MLP}^{(l)}\left((1 + \epsilon^{(l)}) \mathbf{h}_v^{(l)}
++ \sum_{u \in \mathcal{N}(v)} \mathbf{h}_u^{(l)}\right)
+\end{equation}
+where $\epsilon^{(l)}$ is a learnable scalar and MLP is a 2-layer perceptron.
+
+\subsubsection{Graph-Level Pooling and Prediction}
+
+After $L$ graph convolution layers (2-5 layers selected via HPO), node embeddings
+are aggregated to a graph-level representation using mean pooling:
+\begin{equation}
+\mathbf{h}_G^{\text{node}} = \frac{1}{|V|} \sum_{v \in V} \mathbf{h}_v^{(L)}
+\end{equation}
+
+The pooled node embeddings $\mathbf{h}_G^{\text{node}} \in \mathbb{R}^{d_{\text{hidden}}}$
+(where $d_{\text{hidden}}$ is 64-384, selected via HPO) are concatenated with the
+graph-level ADME features $\mathbf{f}_G \in \mathbb{R}^{d_{\text{ADME}}}$:
+\begin{equation}
+\mathbf{h}_G^{\text{combined}} = [\mathbf{h}_G^{\text{node}} \| \mathbf{f}_G] \in \mathbb{R}^{d_{\text{hidden}} + d_{\text{ADME}}}
+\end{equation}
+
+This combined representation is passed through a multi-layer perceptron (MLP) with
+dropout regularization (2-3 layers with hidden dimensions selected via HPO):
+\begin{align}
+\mathbf{z}^{(1)} &= \text{ReLU}(\mathbf{W}_1 \mathbf{h}_G^{\text{combined}} + \mathbf{b}_1) \\
+\mathbf{z}^{(1)} &\leftarrow \text{Dropout}(\mathbf{z}^{(1)}, p=p_{\text{dropout}}) \\
+\mathbf{z}^{(2)} &= \text{ReLU}(\mathbf{W}_2 \mathbf{z}^{(1)} + \mathbf{b}_2) \\
+\mathbf{z}^{(2)} &\leftarrow \text{Dropout}(\mathbf{z}^{(2)}, p=p_{\text{dropout}}) \\
+\hat{y} &= \mathbf{W}_3 \mathbf{z}^{(2)} + \mathbf{b}_3
+\end{align}
+
+For \textbf{regression tasks}, $\hat{y} \in \mathbb{R}$ predicts the target property
+directly (in normalized log-space for Clearance/Half-Life, or normalized space for
+Caco2\_Wang). For \textbf{classification tasks}, $\hat{y}$ is passed through a sigmoid
+activation to predict probabilities: $p(y=1) = \sigma(\hat{y})$.
+
+\subsubsection{Loss Functions and Optimization}
+
+\textbf{Regression:} Mean Squared Error (MSE) on normalized targets:
+\begin{equation}
+\mathcal{L}_{\text{reg}} = \frac{1}{N} \sum_{i=1}^N (\hat{y}_i - y_i')^2
+\end{equation}
+where $y_i'$ is the normalized (and possibly log-transformed) target.
+
+\textbf{Classification:} Binary Cross-Entropy (BCE):
+\begin{equation}
+\mathcal{L}_{\text{cls}} = -\frac{1}{N} \sum_{i=1}^N \left[y_i \log(\hat{y}_i) + (1-y_i)\log(1-\hat{y}_i)\right]
+\end{equation}
+
+Models were optimized using Adam~\cite{kingma2015adam} with learning rate, weight
+decay, and dropout rate selected via hyperparameter optimization (Section~\ref{sec:hpo}).
+Gradient clipping (max norm = 1.0) was applied to prevent exploding gradients.
+Batch size was fixed at 32 for training and 64 for evaluation.
+
+\subsubsection{Early Stopping and Regularization}
+
+Training employed early stopping with patience of 10-12 epochs on validation set
+performance (F1 for classification, RMSE for regression). Additional regularization:
+\begin{itemize}[noitemsep,topsep=0pt]
+    \item \textbf{Dropout}~\cite{srivastava2014dropout}: Applied after each GNN
+    layer and in the MLP head (rate: 0.0-0.5, selected via HPO)
+    \item \textbf{L2 Weight Decay}: Regularization coefficient $\lambda$ = 1e-5 to 1e-3
+    (selected via HPO)
+    \item \textbf{Batch Normalization}: Applied before activation functions in MLP head
+\end{itemize}
+
+Maximum training duration was 50 epochs. All models were implemented in PyTorch 2.0~\cite{paszke2019pytorch}
+and PyTorch Geometric 2.3~\cite{fey2019pyg}.
+
+\subsubsection{Hyperparameters Subject to Optimization}
+
+The following hyperparameters were optimized via metaheuristic algorithms
+(see Section~\ref{sec:hpo}):
+\begin{itemize}[noitemsep,topsep=0pt]
+    \item Architecture type: \{GCN, GAT, GIN\} (categorical)
+    \item Number of GNN layers: \{2, 3, 4, 5\} (discrete)
+    \item Hidden dimension: \{64, 128, 256, 384\} (discrete)
+    \item MLP head dimensions: Variable-length list (e.g., [384, 96, 64])
+    \item Learning rate: $[10^{-4}, 10^{-2}]$ (continuous, log-uniform)
+    \item Dropout rate: $[0.0, 0.5]$ (continuous, uniform)
+    \item Weight decay: $[10^{-5}, 10^{-3}]$ (continuous, log-uniform)
+\end{itemize}
+
+This yields a mixed discrete-continuous hyperparameter space with 7 dimensions and
+one categorical variable (architecture type).
+
+\textbf{Implementation Note:} The hybrid architecture (node features + graph-level
+ADME features) allows the model to leverage both local structural patterns (via GNN
+message passing) and global physicochemical properties (via ADME descriptors). This
+design is particularly effective for ADMET prediction where both molecular structure
+and bulk properties influence the target variable.

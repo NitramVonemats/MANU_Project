@@ -1,0 +1,39 @@
+{
+  "mode": "both",
+  "datasets": [
+    "Half_Life_Obach",
+    "Clearance_Hepatocyte_AZ",
+    "Clearance_Microsome_AZ",
+    "Caco2_Wang",
+    "tox21",
+    "herg",
+    "clintox"
+  ],
+  "hpo": {
+    "enabled": true,
+    "algorithm": "all",
+    "trials": 10,
+    "epochs": 50,
+    "patience": 12,
+    "batch_train": 32,
+    "batch_eval": 64,
+    "val_fraction": 0.1
+  },
+  "basic": {
+    "enabled": true,
+    "epochs": 100,
+    "patience": 20
+  },
+  "general": {
+    "seed": 42,
+    "device": "auto",
+    "no_confirm": false,
+    "runs_dir": "runs",
+    "reports_dir": "reports"
+  },
+  "reporting": {
+    "generate_reports": true,
+    "save_plots": true,
+    "plot_dpi": 300
+  }
+}
