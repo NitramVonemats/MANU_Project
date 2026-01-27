@@ -29,42 +29,45 @@ plt.rcParams['figure.figsize'] = (12, 8)
 plt.rcParams['font.size'] = 10
 
 
+def is_classification_dataset(dataset_name: str) -> bool:
+    """Detect if dataset is classification (Tox) or regression (ADME)"""
+    classification_datasets = ['tox21', 'herg', 'clintox', 'ames', 'dili', 'toxcast', 'skin_reaction']
+    return any(ds in dataset_name.lower() for ds in classification_datasets)
+
+
 def load_hpo_results(runs_dir: str = "runs") -> pd.DataFrame:
     """Load all HPO results from JSON files."""
     runs_path = Path(runs_dir)
     if not runs_path.exists():
         return pd.DataFrame()
-    
+
     results = []
-    
+
     for dataset_dir in runs_path.iterdir():
         if not dataset_dir.is_dir():
             continue
-        
+
         dataset_name = dataset_dir.name
         json_files = list(dataset_dir.glob("hpo_*.json"))
-        
+        is_classification = is_classification_dataset(dataset_name)
+
         for json_file in json_files:
             try:
                 with open(json_file, 'r') as f:
                     data = json.load(f)
-                
+
                 algo_name = data.get("algo", "unknown")
                 search = data.get("search", {})
                 final = data.get("final_training", {})
-                
-                results.append({
+                test_metrics = final.get("test_metrics", {})
+                val_metrics = final.get("val_metrics", {})
+
+                result = {
                     "dataset": dataset_name,
                     "model_type": f"HPO-{algo_name}",
                     "algorithm": algo_name,
                     "trials": search.get("trials", 0),
-                    "best_val_rmse_search": search.get("best_val_rmse", None),
-                    "test_rmse": final.get("test_metrics", {}).get("rmse", None),
-                    "test_mae": final.get("test_metrics", {}).get("mae", None),
-                    "test_r2": final.get("test_metrics", {}).get("r2", None),
-                    "val_rmse": final.get("val_metrics", {}).get("rmse", None),
-                    "val_mae": final.get("val_metrics", {}).get("mae", None),
-                    "val_r2": final.get("val_metrics", {}).get("r2", None),
+                    "task_type": "classification" if is_classification else "regression",
                     "train_time": final.get("train_time", None),
                     "epochs": final.get("epochs", None),
                     "patience": final.get("patience", None),
@@ -73,11 +76,48 @@ def load_hpo_results(runs_dir: str = "runs") -> pd.DataFrame:
                     "lr": search.get("best_params", {}).get("lr", None),
                     "weight_decay": search.get("best_params", {}).get("weight_decay", None),
                     "file_path": str(json_file),
-                })
+                }
+
+                if is_classification:
+                    # Classification metrics
+                    result.update({
+                        "best_val_metric_search": search.get("best_val_rmse", None),  # Actually F1 (negative)
+                        "test_f1": test_metrics.get("f1", None),
+                        "test_auc_roc": test_metrics.get("auc_roc", None),
+                        "test_accuracy": test_metrics.get("accuracy", None),
+                        "val_f1": val_metrics.get("f1", None),
+                        "val_auc_roc": val_metrics.get("auc_roc", None),
+                        "val_accuracy": val_metrics.get("accuracy", None),
+                        "test_rmse": None,
+                        "test_mae": None,
+                        "test_r2": None,
+                        "val_rmse": None,
+                        "val_mae": None,
+                        "val_r2": None,
+                    })
+                else:
+                    # Regression metrics
+                    result.update({
+                        "best_val_metric_search": search.get("best_val_rmse", None),
+                        "test_rmse": test_metrics.get("rmse", None),
+                        "test_mae": test_metrics.get("mae", None),
+                        "test_r2": test_metrics.get("r2", None),
+                        "val_rmse": val_metrics.get("rmse", None),
+                        "val_mae": val_metrics.get("mae", None),
+                        "val_r2": val_metrics.get("r2", None),
+                        "test_f1": None,
+                        "test_auc_roc": None,
+                        "test_accuracy": None,
+                        "val_f1": None,
+                        "val_auc_roc": None,
+                        "val_accuracy": None,
+                    })
+
+                results.append(result)
             except Exception as e:
                 print(f"WARNING: Error loading {json_file}: {e}")
                 continue
-    
+
     return pd.DataFrame(results)
 
 
@@ -126,42 +166,98 @@ def create_summary_table(df: pd.DataFrame) -> pd.DataFrame:
     """Create a summary table comparing models across datasets."""
     if df.empty:
         return pd.DataFrame()
-    
+
     summary_data = []
-    
+
     for dataset in df["dataset"].unique():
         dataset_df = df[df["dataset"] == dataset]
-        
+
+        # Determine task type
+        task_type = dataset_df["task_type"].iloc[0] if "task_type" in dataset_df.columns else "regression"
+        is_classification = (task_type == "classification")
+
         # Best HPO result
         hpo_df = dataset_df[dataset_df["model_type"] != "Basic"]
         if not hpo_df.empty:
-            best_hpo = hpo_df.loc[hpo_df["test_rmse"].idxmin()]
-            summary_data.append({
-                "dataset": dataset,
-                "model": "Best HPO",
-                "algorithm": best_hpo["algorithm"],
-                "test_rmse": best_hpo["test_rmse"],
-                "test_mae": best_hpo["test_mae"],
-                "test_r2": best_hpo["test_r2"],
-                "val_rmse": best_hpo["val_rmse"],
-                "train_time": best_hpo["train_time"],
-            })
-        
+            # Select best model based on task type
+            if is_classification:
+                # For classification: maximize F1 score
+                best_hpo = hpo_df.loc[hpo_df["test_f1"].idxmax()]
+                summary_data.append({
+                    "dataset": dataset,
+                    "task_type": "classification",
+                    "model": "Best HPO",
+                    "algorithm": best_hpo["algorithm"],
+                    "test_f1": best_hpo["test_f1"],
+                    "test_auc_roc": best_hpo["test_auc_roc"],
+                    "test_accuracy": best_hpo["test_accuracy"],
+                    "val_f1": best_hpo["val_f1"],
+                    "val_auc_roc": best_hpo["val_auc_roc"],
+                    "train_time": best_hpo["train_time"],
+                    "test_rmse": None,
+                    "test_mae": None,
+                    "test_r2": None,
+                    "val_rmse": None,
+                })
+            else:
+                # For regression: minimize RMSE
+                best_hpo = hpo_df.loc[hpo_df["test_rmse"].idxmin()]
+                summary_data.append({
+                    "dataset": dataset,
+                    "task_type": "regression",
+                    "model": "Best HPO",
+                    "algorithm": best_hpo["algorithm"],
+                    "test_rmse": best_hpo["test_rmse"],
+                    "test_mae": best_hpo["test_mae"],
+                    "test_r2": best_hpo["test_r2"],
+                    "val_rmse": best_hpo["val_rmse"],
+                    "train_time": best_hpo["train_time"],
+                    "test_f1": None,
+                    "test_auc_roc": None,
+                    "test_accuracy": None,
+                    "val_f1": None,
+                    "val_auc_roc": None,
+                })
+
         # Basic model result
         basic_df = dataset_df[dataset_df["model_type"] == "Basic"]
         if not basic_df.empty:
             basic = basic_df.iloc[0]
-            summary_data.append({
-                "dataset": dataset,
-                "model": "Basic",
-                "algorithm": "basic",
-                "test_rmse": basic["test_rmse"],
-                "test_mae": basic["test_mae"],
-                "test_r2": basic["test_r2"],
-                "val_rmse": basic["val_rmse"],
-                "train_time": basic["train_time"],
-            })
-    
+            if is_classification:
+                summary_data.append({
+                    "dataset": dataset,
+                    "task_type": "classification",
+                    "model": "Basic",
+                    "algorithm": "basic",
+                    "test_f1": basic.get("test_f1", None),
+                    "test_auc_roc": basic.get("test_auc_roc", None),
+                    "test_accuracy": basic.get("test_accuracy", None),
+                    "val_f1": basic.get("val_f1", None),
+                    "val_auc_roc": basic.get("val_auc_roc", None),
+                    "train_time": basic.get("train_time", None),
+                    "test_rmse": None,
+                    "test_mae": None,
+                    "test_r2": None,
+                    "val_rmse": None,
+                })
+            else:
+                summary_data.append({
+                    "dataset": dataset,
+                    "task_type": "regression",
+                    "model": "Basic",
+                    "algorithm": "basic",
+                    "test_rmse": basic.get("test_rmse", None),
+                    "test_mae": basic.get("test_mae", None),
+                    "test_r2": basic.get("test_r2", None),
+                    "val_rmse": basic.get("val_rmse", None),
+                    "train_time": basic.get("train_time", None),
+                    "test_f1": None,
+                    "test_auc_roc": None,
+                    "test_accuracy": None,
+                    "val_f1": None,
+                    "val_auc_roc": None,
+                })
+
     return pd.DataFrame(summary_data)
 
 

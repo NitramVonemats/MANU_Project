@@ -9,6 +9,7 @@ from optimized_gnn import (
     prepare_dataset,
     resolve_device,
     train_model,
+    is_classification_dataset,
 )
 from .space import bounds, decode_vector
 
@@ -32,6 +33,7 @@ class HyperParamProblem(Problem):
         self.patience = patience
         self.seed = seed
         self.device = resolve_device(device)
+        self.is_classification = is_classification_dataset(dataset_name)
         self.dataset_cache = dataset_cache or prepare_dataset(
             dataset_name=dataset_name,
             val_fraction=base_config.val_fraction,
@@ -59,7 +61,13 @@ class HyperParamProblem(Problem):
                 return_model=False,
                 verbose=False,
             )
-            return float(result["val_metrics"]["rmse"])
+            # For classification: minimize negative F1 (i.e., maximize F1)
+            # For regression: minimize RMSE
+            if self.is_classification:
+                f1 = result["val_metrics"].get("f1", 0.0)
+                return -float(f1)  # Negative because niapy minimizes
+            else:
+                return float(result["val_metrics"]["rmse"])
         except Exception as exc:  # pragma: no cover - defensive
             print(f"[HPO] Evaluation failed: {exc}")
             return float("inf")

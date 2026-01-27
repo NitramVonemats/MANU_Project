@@ -37,10 +37,15 @@ except ImportError:
 
 # All available datasets
 ALL_DATASETS = [
+    # ADME (4 datasets)
     "Half_Life_Obach",
     "Clearance_Hepatocyte_AZ",
     "Clearance_Microsome_AZ",
     "Caco2_Wang",
+    # Toxicity (3 datasets)
+    "tox21",
+    "herg",
+    "clintox",
 ]
 
 # Default HPO configuration
