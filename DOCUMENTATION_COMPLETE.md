@@ -243,36 +243,63 @@ Edge features: {yes, no}
 - Bits: 2048
 - Type: ECFP4 (Extended Connectivity Fingerprints)
 
-## 5.3 Foundation Model Results
+## 5.3 Foundation Model Results (COMPLETE BENCHMARK - Jan 2026)
 
-### Table: Half_Life_Obach Comparison
+### 5.3.1 Models Tested
 
-| Model | Test R² | Test RMSE | Training Time |
-|-------|---------|-----------|---------------|
-| ChemBERTa-only | **0.390** | **16.95** | 556s |
-| GNN+ChemBERTa | 0.114 | 20.42 | 820s |
-| Morgan-FP-only | -0.016 | 21.87 | 45s |
-| GNN-only | -0.036 | 22.08 | 73s |
+| Model | Type | Description | Status |
+|-------|------|-------------|--------|
+| **GNN-Best** | Graph Neural Network | End-to-end trained GCN with HPO | ✅ Tested |
+| **Morgan-FP** | Fingerprint | 2048-bit ECFP4 + MLP | ✅ Tested |
+| **ChemBERTa** | Transformer | Pre-trained SMILES encoder | ✅ Tested |
+| **MolCLR** | Graph Contrastive | GCN backbone (random init) | ✅ Tested |
+| **MolE-FP** | Learned FP | Deep fingerprint encoder | ✅ Tested |
+| **BioMed-IBM** | Multi-view | IBM foundation model | ⚠️ Skipped (incompatible) |
 
-### Table: Complete Foundation Model Comparison
+### 5.3.2 ADME Regression Results (Test RMSE ↓)
 
-| Dataset | GNN Best | Morgan-FP | ChemBERTa | Winner |
-|---------|----------|-----------|-----------|--------|
-| Half_Life | 20.37 (PSO) | 22.32 | 26.24 | **GNN** |
-| Clearance_Hepatocyte | 50.29 (SA) | 48.55 | 50.24 | Competitive |
-| Clearance_Microsome | 40.86 (SA) | 40.26 | 41.04 | Competitive |
-| Caco2_Wang | 0.0026 (PSO) | N/A | N/A | **GNN** |
-| Tox21 | 0.797 AUC | N/A | N/A | **GNN** |
-| hERG | 0.897 AUC | 0.526 | 0.804 | **GNN** |
+| Dataset | GNN-Best | Morgan-FP | ChemBERTa | MolCLR | MolE-FP | Winner |
+|---------|----------|-----------|-----------|--------|---------|--------|
+| **Caco2_Wang** | **0.0027** | 0.614 | 0.496 | 0.713 | 0.670 | **GNN** |
+| **Half_Life_Obach** | **21.66** | 22.12 | 27.39 | 21.97 | 25.01 | **GNN** |
+| **Clearance_Hepatocyte** | 68.22 | 48.36 | 47.31 | 48.71 | **47.22** | **MolE-FP** |
+| **Clearance_Microsome** | **38.75** | 40.36 | 42.56 | 43.33 | 41.79 | **GNN** |
+
+### 5.3.3 Toxicity Classification Results (Test AUC-ROC ↑)
+
+| Dataset | GNN-Best | Morgan-FP | ChemBERTa | MolCLR | MolE-FP | Winner |
+|---------|----------|-----------|-----------|--------|---------|--------|
+| **Tox21** | **0.742** | 0.722 | 0.728 | 0.538 | 0.675 | **GNN** |
+| **hERG** | **0.825** | 0.611 | 0.770 | 0.504 | 0.672 | **GNN** |
+
+### 5.3.4 Winner Summary
+
+| Model | Wins | Datasets |
+|-------|------|----------|
+| **GNN-Best** | 5/6 | Caco2, Half_Life, Microsome, Tox21, hERG |
+| **MolE-FP** | 1/6 | Clearance_Hepatocyte |
+| ChemBERTa | 0/6 | (2nd place on 4 datasets) |
+| Morgan-FP | 0/6 | - |
+| MolCLR | 0/6 | - |
 
 ## 5.4 Key Findings from Foundation Model Tests
 
-1. **ChemBERTa** постигна најдобар R² (0.390) на Half_Life, демонстрирајќи ја вредноста на pre-trained representations
-2. **ChemBERTa** бара 7.6× подолго training време од GNN-only
-3. **Hybrid пристапот** (GNN+ChemBERTa) не го подобри performance над поединечните компоненти, сугерирајќи representation redundancy
-4. **GNN модели** генерално ги надминуваат foundation models на ADMET benchmarks
+1. **GNN победува на 5/6 datasets** - Graph neural networks ги надминуваат foundation models
+2. **ChemBERTa** е најдобар foundation model, постигнува 2nd place на повеќето datasets
+3. **MolCLR слабо перформира** поради random initialization (нема pretrained weights)
+4. **Foundation models се competitive** само на Clearance_Hepatocyte dataset
+5. **Training time**: GNN е ~10x побрз од ChemBERTa
 
-**Заклучок:** GNN-only е избран за HPO benchmark поради практичност и конкурентен performance.
+### Figure: GNN vs Foundation Models Comparison
+![GNN vs Foundation](figures/foundation/gnn_vs_foundation_comparison.png)
+
+### Figure: Foundation Model Rankings
+![Foundation Ranking](figures/foundation/foundation_ranking.png)
+
+### Figure: Performance Heatmap
+![Performance Heatmap](figures/foundation/performance_heatmap.png)
+
+**Заклучок:** GNN models остануваат state-of-the-art за ADMET prediction, надминувајќи ги foundation models на 5/6 benchmarks.
 
 ---
 
