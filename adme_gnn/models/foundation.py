@@ -130,70 +130,172 @@ class BioMedEncoder(nn.Module):
 
 class MolCLREncoder(nn.Module):
     """
-    MolCLR - Molecular Contrastive Learning
+    MolCLR - Molecular Contrastive Learning with PRETRAINED WEIGHTS
 
-    Uses a GCN backbone for graph-based molecular embeddings.
-    Converts SMILES to graphs on-the-fly using PyTorch Geometric.
+    Uses official MolCLR pretrained GIN model from:
+    https://github.com/yuyangw/MolCLR
+
+    The model is pretrained on ~10M molecules using contrastive learning
+    and achieves state-of-the-art results on molecular property prediction.
     """
 
-    def __init__(self, proj_dim=256, atom_feat_dim=9):
+    def __init__(self, proj_dim=256, pretrained_path=None, model_type='gin'):
         super().__init__()
         self.proj_dim = proj_dim
-        self.atom_feat_dim = atom_feat_dim
         self.name = "MolCLR"
         self.enabled = True
+        self.model_type = model_type
+
+        # Default pretrained path
+        if pretrained_path is None:
+            import os
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            pretrained_path = os.path.join(base_dir, 'external', 'MolCLR', 'ckpt',
+                                          f'pretrained_{model_type}', 'checkpoints', 'model.pth')
+        self.pretrained_path = pretrained_path
+
+        # MolCLR feature constants
+        self.num_atom_type = 119
+        self.num_chirality_tag = 3
+        self.num_bond_type = 5
+        self.num_bond_direction = 3
+        self.emb_dim = 300
+        self.num_layer = 5
+        self.feat_dim = 512
 
         try:
-            from torch_geometric.nn import GCNConv, global_mean_pool
+            from torch_geometric.nn import MessagePassing, global_mean_pool, global_add_pool
+            from torch_geometric.utils import add_self_loops
             from torch_geometric.data import Data, Batch
-            self.GCNConv = GCNConv
+            from rdkit import Chem
+            from rdkit.Chem.rdchem import BondType as BT
+
             self.global_mean_pool = global_mean_pool
+            self.global_add_pool = global_add_pool
+            self.add_self_loops = add_self_loops
             self.Data = Data
             self.Batch = Batch
+            self.Chem = Chem
+            self.BT = BT
 
-            # Try to import from_smiles
-            try:
-                from torch_geometric.utils import from_smiles
-                self.from_smiles = from_smiles
-            except ImportError:
-                try:
-                    from torch_geometric.data import from_smiles
-                    self.from_smiles = from_smiles
-                except ImportError:
-                    print("WARNING: from_smiles not available, MolCLR will use fallback")
-                    self.from_smiles = None
+            # Build the GIN encoder (matching MolCLR architecture)
+            self._build_gin_encoder()
 
-            # GCN layers - 3 layer architecture
-            self.conv1 = GCNConv(atom_feat_dim, 128)
-            self.conv2 = GCNConv(128, 256)
-            self.conv3 = GCNConv(256, 256)
-            self.bn1 = nn.BatchNorm1d(128)
-            self.bn2 = nn.BatchNorm1d(256)
-            self.bn3 = nn.BatchNorm1d(256)
+            # Load pretrained weights
+            self._load_pretrained_weights()
 
         except ImportError as e:
-            print(f"WARNING: PyTorch Geometric not available: {e}")
+            print(f"WARNING: Required packages not available: {e}")
+            self.enabled = False
+        except Exception as e:
+            print(f"WARNING: MolCLR initialization failed: {e}")
             self.enabled = False
 
-        self.proj = nn.Linear(256, proj_dim)
+        # Output projection
+        self.proj = nn.Linear(self.feat_dim, proj_dim)
+
+    def _build_gin_encoder(self):
+        """Build GIN encoder matching MolCLR architecture"""
+        # Atom embeddings
+        self.x_embedding1 = nn.Embedding(self.num_atom_type, self.emb_dim)
+        self.x_embedding2 = nn.Embedding(self.num_chirality_tag, self.emb_dim)
+        nn.init.xavier_uniform_(self.x_embedding1.weight.data)
+        nn.init.xavier_uniform_(self.x_embedding2.weight.data)
+
+        # GIN convolution layers
+        self.gnns = nn.ModuleList()
+        self.batch_norms = nn.ModuleList()
+
+        for layer in range(self.num_layer):
+            self.gnns.append(GINEConvLayer(self.emb_dim, self.num_bond_type, self.num_bond_direction))
+            self.batch_norms.append(nn.BatchNorm1d(self.emb_dim))
+
+        # Feature projection
+        self.feat_lin = nn.Linear(self.emb_dim, self.feat_dim)
+
+    def _load_pretrained_weights(self):
+        """Load official MolCLR pretrained weights"""
+        import os
+        if os.path.exists(self.pretrained_path):
+            print(f"Loading MolCLR pretrained weights from {self.pretrained_path}")
+            state_dict = torch.load(self.pretrained_path, map_location='cpu')
+
+            # Filter and load only encoder weights (not prediction head)
+            own_state = self.state_dict()
+            loaded_count = 0
+            for name, param in state_dict.items():
+                # Skip prediction head weights
+                if 'pred_head' in name or 'pred_lin' in name:
+                    continue
+                if name in own_state:
+                    if isinstance(param, nn.parameter.Parameter):
+                        param = param.data
+                    try:
+                        own_state[name].copy_(param)
+                        loaded_count += 1
+                    except Exception as e:
+                        print(f"  Could not load {name}: {e}")
+            print(f"  Loaded {loaded_count} pretrained parameters")
+        else:
+            print(f"WARNING: Pretrained weights not found at {self.pretrained_path}")
+            print("  MolCLR will use random initialization (not recommended)")
 
     def _smiles_to_graph(self, smiles):
-        """Convert single SMILES to PyG Data object"""
-        if self.from_smiles is None:
-            return None
+        """Convert SMILES to PyG Data using MolCLR featurization"""
         try:
-            data = self.from_smiles(smiles)
-            if data is None or data.x is None:
+            mol = self.Chem.MolFromSmiles(smiles)
+            if mol is None:
                 return None
-            # Ensure x has correct dimensions (pad or truncate to atom_feat_dim)
-            if data.x.shape[1] < self.atom_feat_dim:
-                padding = torch.zeros(data.x.shape[0], self.atom_feat_dim - data.x.shape[1])
-                data.x = torch.cat([data.x.float(), padding], dim=1)
-            elif data.x.shape[1] > self.atom_feat_dim:
-                data.x = data.x[:, :self.atom_feat_dim].float()
-            else:
-                data.x = data.x.float()
-            return data
+            mol = self.Chem.AddHs(mol)
+
+            # Atom features
+            ATOM_LIST = list(range(1, 119))
+            CHIRALITY_LIST = [
+                self.Chem.rdchem.ChiralType.CHI_UNSPECIFIED,
+                self.Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CW,
+                self.Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CCW,
+                self.Chem.rdchem.ChiralType.CHI_OTHER
+            ]
+            BOND_LIST = [self.BT.SINGLE, self.BT.DOUBLE, self.BT.TRIPLE, self.BT.AROMATIC]
+            BONDDIR_LIST = [
+                self.Chem.rdchem.BondDir.NONE,
+                self.Chem.rdchem.BondDir.ENDUPRIGHT,
+                self.Chem.rdchem.BondDir.ENDDOWNRIGHT
+            ]
+
+            type_idx = []
+            chirality_idx = []
+            for atom in mol.GetAtoms():
+                atom_num = atom.GetAtomicNum()
+                type_idx.append(ATOM_LIST.index(atom_num) if atom_num in ATOM_LIST else 0)
+                chiral = atom.GetChiralTag()
+                chirality_idx.append(CHIRALITY_LIST.index(chiral) if chiral in CHIRALITY_LIST else 0)
+
+            x1 = torch.tensor(type_idx, dtype=torch.long).view(-1, 1)
+            x2 = torch.tensor(chirality_idx, dtype=torch.long).view(-1, 1)
+            x = torch.cat([x1, x2], dim=-1)
+
+            # Edge features
+            row, col, edge_feat = [], [], []
+            for bond in mol.GetBonds():
+                start, end = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+                row += [start, end]
+                col += [end, start]
+                bond_type = bond.GetBondType()
+                bond_dir = bond.GetBondDir()
+                edge_feat.append([
+                    BOND_LIST.index(bond_type) if bond_type in BOND_LIST else 0,
+                    BONDDIR_LIST.index(bond_dir) if bond_dir in BONDDIR_LIST else 0
+                ])
+                edge_feat.append([
+                    BOND_LIST.index(bond_type) if bond_type in BOND_LIST else 0,
+                    BONDDIR_LIST.index(bond_dir) if bond_dir in BONDDIR_LIST else 0
+                ])
+
+            edge_index = torch.tensor([row, col], dtype=torch.long)
+            edge_attr = torch.tensor(edge_feat, dtype=torch.long) if edge_feat else torch.zeros((0, 2), dtype=torch.long)
+
+            return self.Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
         except Exception as e:
             return None
 
@@ -205,10 +307,11 @@ class MolCLREncoder(nn.Module):
             if g is not None:
                 graphs.append(g)
             else:
-                # Create dummy graph for failed conversions
+                # Dummy graph for failed conversions
                 dummy = self.Data(
-                    x=torch.zeros(1, self.atom_feat_dim),
-                    edge_index=torch.zeros(2, 0, dtype=torch.long)
+                    x=torch.zeros(1, 2, dtype=torch.long),
+                    edge_index=torch.zeros(2, 0, dtype=torch.long),
+                    edge_attr=torch.zeros(0, 2, dtype=torch.long)
                 )
                 graphs.append(dummy)
 
@@ -219,19 +322,13 @@ class MolCLREncoder(nn.Module):
         return batch.to(device)
 
     def forward(self, data, device):
-        """
-        Forward pass - handles both SMILES list and PyG Data/Batch
-
-        Args:
-            data: Either list of SMILES strings or PyG Batch object
-            device: torch device
-        """
+        """Forward pass with SMILES list or PyG Batch"""
         if not self.enabled:
             if isinstance(data, list):
                 return torch.zeros((len(data), self.proj_dim), device=device)
             return torch.zeros((1, self.proj_dim), device=device)
 
-        # Convert SMILES list to batch if needed
+        # Convert SMILES to batch
         if isinstance(data, list):
             batch_data = self._smiles_list_to_batch(data, device)
             if batch_data is None:
@@ -241,25 +338,67 @@ class MolCLREncoder(nn.Module):
 
         x = batch_data.x.to(device)
         edge_index = batch_data.edge_index.to(device)
+        edge_attr = batch_data.edge_attr.to(device)
         batch = batch_data.batch.to(device)
 
-        # Forward through GCN layers
-        x = self.conv1(x, edge_index)
-        x = self.bn1(x)
-        x = torch.relu(x)
+        # Atom embeddings
+        h = self.x_embedding1(x[:, 0]) + self.x_embedding2(x[:, 1])
 
-        x = self.conv2(x, edge_index)
-        x = self.bn2(x)
-        x = torch.relu(x)
-
-        x = self.conv3(x, edge_index)
-        x = self.bn3(x)
-        x = torch.relu(x)
+        # GIN layers
+        for layer in range(self.num_layer):
+            h = self.gnns[layer](h, edge_index, edge_attr)
+            h = self.batch_norms[layer](h)
+            if layer == self.num_layer - 1:
+                h = torch.dropout(h, p=0.0, train=self.training)
+            else:
+                h = torch.dropout(torch.relu(h), p=0.0, train=self.training)
 
         # Global pooling
-        x = self.global_mean_pool(x, batch)
+        h = self.global_mean_pool(h, batch)
+        h = self.feat_lin(h)
 
-        return self.proj(x)
+        return self.proj(h)
+
+
+class GINEConvLayer(nn.Module):
+    """GIN convolution layer with edge features (matching MolCLR)"""
+
+    def __init__(self, emb_dim, num_bond_type=5, num_bond_direction=3):
+        super().__init__()
+        self.mlp = nn.Sequential(
+            nn.Linear(emb_dim, 2 * emb_dim),
+            nn.ReLU(),
+            nn.Linear(2 * emb_dim, emb_dim)
+        )
+        self.edge_embedding1 = nn.Embedding(num_bond_type, emb_dim)
+        self.edge_embedding2 = nn.Embedding(num_bond_direction, emb_dim)
+        nn.init.xavier_uniform_(self.edge_embedding1.weight.data)
+        nn.init.xavier_uniform_(self.edge_embedding2.weight.data)
+        self.emb_dim = emb_dim
+
+    def forward(self, x, edge_index, edge_attr):
+        from torch_geometric.utils import add_self_loops
+
+        # Add self-loops
+        edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0))
+
+        # Self-loop edge attributes
+        self_loop_attr = torch.zeros(x.size(0), 2, device=edge_attr.device, dtype=edge_attr.dtype)
+        self_loop_attr[:, 0] = 4  # Self-loop bond type
+        edge_attr = torch.cat([edge_attr, self_loop_attr], dim=0)
+
+        # Edge embeddings
+        edge_embeddings = self.edge_embedding1(edge_attr[:, 0]) + self.edge_embedding2(edge_attr[:, 1])
+
+        # Message passing
+        row, col = edge_index
+        out = torch.zeros_like(x)
+
+        # Aggregate: sum of (neighbor features + edge features)
+        messages = x[col] + edge_embeddings
+        out.index_add_(0, row, messages)
+
+        return self.mlp(out)
 
 
 class MolEEncoder(nn.Module):

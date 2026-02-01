@@ -286,9 +286,33 @@ Edge features: {yes, no}
 
 1. **GNN победува на 5/6 datasets** - Graph neural networks ги надминуваат foundation models
 2. **ChemBERTa** е најдобар foundation model, постигнува 2nd place на повеќето datasets
-3. **MolCLR слабо перформира** поради random initialization (нема pretrained weights)
+3. **MolCLR слабо перформира** - и со и без pretrained weights (види 5.5)
 4. **Foundation models се competitive** само на Clearance_Hepatocyte dataset
 5. **Training time**: GNN е ~10x побрз од ChemBERTa
+
+## 5.5 MolCLR Pretrained Weights Investigation (Jan 2026)
+
+### Важен негативен резултат
+
+Интегриравме официјални MolCLR pretrained weights (од https://github.com/yuyangw/MolCLR) за да проверам дали ќе се подобрат резултатите.
+
+**Наод: Pretrained weights НЕ ги подобрија резултатите!**
+
+| Dataset | Random Init | Pretrained | Промена |
+|---------|-------------|------------|---------|
+| Tox21 (AUC) | 0.538 | 0.452 | **-8.6%** (полошо) |
+| hERG (AUC) | 0.504 | 0.401 | **-10.3%** (полошо) |
+| Caco2 (RMSE) | 0.713 | 0.749 | +5.0% (полошо) |
+
+**Можни причини:**
+- MolCLR е претрениран на PubChem за општи molecular properties, не за toxicity
+- Нашите toxicity задачи бараат специфични toxicophore patterns
+- Feature extraction без fine-tuning не е доволно за transfer
+
+**Импликации за paperот:**
+- Оригиналните MolCLR резултати (random init) остануваат во главната споредба
+- Ова е важен негативен резултат: pretrained weights не гарантираат подобрување
+- Детали во `MOLCLR_PRETRAINED_ANALYSIS.md`
 
 ### Figure: GNN vs Foundation Models Comparison
 ![GNN vs Foundation](figures/foundation/gnn_vs_foundation_comparison.png)
