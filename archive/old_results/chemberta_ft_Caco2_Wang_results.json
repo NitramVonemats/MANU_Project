@@ -1,0 +1,16 @@
+{
+  "dataset": "Caco2_Wang",
+  "task_type": "regression",
+  "best_val_metric": 0.46901696867940484,
+  "epochs_trained": 28,
+  "preprocessing": {
+    "split_method": "2-way TDC + 90/10 manual",
+    "clip_min": null,
+    "mu": -5.253402233123779,
+    "sigma": 0.799432635307312
+  },
+  "test_rmse_orig": 0.003227461447256833,
+  "test_rmse_log": 0.4999491099447253,
+  "test_mae_log": 0.3782382309436798,
+  "test_metric": 0.4999491099447253
+}

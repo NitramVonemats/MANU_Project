@@ -26,6 +26,9 @@ tqdm>=4.65.0
 pyyaml>=6.0
 tabulate>=0.9.0
 
-# Optional: Foundation models (uncomment if needed)
+# Optional: TPE optimization (needed for run_tpe_benchmark.py)
+# optuna>=3.0.0
+
+# Optional: Foundation models (needed for run_chemberta_finetune.py)
 # transformers>=4.30.0
 # tokenizers>=0.13.0

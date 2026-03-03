@@ -1,0 +1,16 @@
+{
+  "dataset": "Half_Life_Obach",
+  "task_type": "regression",
+  "best_val_metric": 1.74516999047931,
+  "epochs_trained": 11,
+  "preprocessing": {
+    "split_method": "2-way TDC + 90/10 manual",
+    "clip_min": 0.001,
+    "mu": 1.6068159608210806,
+    "sigma": 1.4338136138288056
+  },
+  "test_rmse_orig": 8.310535629031756,
+  "test_rmse_log": 1.066278526845795,
+  "test_mae_log": 0.8341647386550903,
+  "test_metric": 1.066278526845795
+}

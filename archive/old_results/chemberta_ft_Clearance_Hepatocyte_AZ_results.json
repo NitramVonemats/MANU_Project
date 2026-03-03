@@ -1,0 +1,16 @@
+{
+  "dataset": "Clearance_Hepatocyte_AZ",
+  "task_type": "regression",
+  "best_val_metric": 1.2080013487757801,
+  "epochs_trained": 14,
+  "preprocessing": {
+    "split_method": "2-way TDC + 90/10 manual",
+    "clip_min": 0.001,
+    "mu": 2.9857483791356874,
+    "sigma": 1.337072342051005
+  },
+  "test_rmse_orig": 52.59749828814936,
+  "test_rmse_log": 1.4173088114337586,
+  "test_mae_log": 1.156672477722168,
+  "test_metric": 1.4173088114337586
+}

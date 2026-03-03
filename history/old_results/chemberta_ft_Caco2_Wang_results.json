@@ -1,0 +1,10 @@
+{
+  "dataset": "Caco2_Wang",
+  "task_type": "regression",
+  "best_val_metric": 0.5287735664130012,
+  "epochs_trained": 26,
+  "test_rmse_orig": 0.0029346458564478667,
+  "test_rmse_log": 0.56838525142951,
+  "test_mae_log": 0.4543709456920624,
+  "test_metric": 0.56838525142951
+}

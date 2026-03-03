@@ -1,0 +1,10 @@
+{
+  "dataset": "Half_Life_Obach",
+  "task_type": "regression",
+  "best_val_metric": 1.49788230181002,
+  "epochs_trained": 12,
+  "test_rmse_orig": 23.861899731351283,
+  "test_rmse_log": 1.3018413725789388,
+  "test_mae_log": 0.9722735285758972,
+  "test_metric": 1.3018413725789388
+}

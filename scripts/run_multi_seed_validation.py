@@ -1,30 +1,44 @@
 """
-Multi-seed validation for statistical robustness
-Runs experiments with 5 different seeds and reports mean ± std
+Multi-Seed Validation Script
+Run GNN training with multiple seeds for statistical validation
+
+FIXED VERSION: Uses same preprocessing as original HPO (optimized_gnn.py)
+- Same atom features (8 features)
+- Same ADME descriptors
+- Same data splitting (TDC 2-way, then manual train/val split)
+- Same log transformation and clipping
+- Same model architecture (mean+max pool, ADME features)
 """
 
 import os
 import sys
 import json
 import time
+import random
 import warnings
 from datetime import datetime
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import pandas as pd
-from scipy import stats
-from sklearn.metrics import mean_squared_error, roc_auc_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error, roc_auc_score
 
 warnings.filterwarnings('ignore')
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-# ============== CONFIGURATION ==============
+# RDKit imports
+try:
+    from rdkit import Chem
+    from rdkit.Chem import Descriptors, rdMolDescriptors
+    RDKit_OK = True
+except ImportError:
+    RDKit_OK = False
 
-SEEDS = [42, 123, 456, 789, 1011]
+# ============== CONFIGURATION ==============
 
 DATASETS = {
     'Caco2_Wang': 'regression',
@@ -35,101 +49,110 @@ DATASETS = {
     'herg': 'classification',
 }
 
-# Best hyperparameters from HPO runs (use your actual best params)
-BEST_PARAMS = {
-    'Caco2_Wang': {'hidden_dim': 256, 'num_layers': 4, 'lr': 0.001, 'dropout': 0.2},
-    'Half_Life_Obach': {'hidden_dim': 256, 'num_layers': 4, 'lr': 0.001, 'dropout': 0.2},
-    'Clearance_Hepatocyte_AZ': {'hidden_dim': 256, 'num_layers': 4, 'lr': 0.001, 'dropout': 0.2},
-    'Clearance_Microsome_AZ': {'hidden_dim': 256, 'num_layers': 4, 'lr': 0.001, 'dropout': 0.2},
-    'tox21': {'hidden_dim': 256, 'num_layers': 4, 'lr': 0.001, 'dropout': 0.2},
-    'herg': {'hidden_dim': 256, 'num_layers': 4, 'lr': 0.001, 'dropout': 0.2},
-}
-
+SEEDS = [42, 123, 456, 789, 1011]
 MAX_EPOCHS = 50
 PATIENCE = 12
 OUTPUT_DIR = os.path.join(project_root, 'results', 'multi_seed')
 
+# Best hyperparameters from HPO (use these for all seeds)
+BEST_PARAMS = {
+    'Caco2_Wang': {'hidden_dim': 128, 'num_layers': 5, 'lr': 1e-3, 'weight_decay': 1e-4, 'dropout': 0.1},
+    'Half_Life_Obach': {'hidden_dim': 128, 'num_layers': 5, 'lr': 1e-3, 'weight_decay': 1e-4, 'dropout': 0.1},
+    'Clearance_Hepatocyte_AZ': {'hidden_dim': 128, 'num_layers': 5, 'lr': 1e-3, 'weight_decay': 1e-4, 'dropout': 0.1},
+    'Clearance_Microsome_AZ': {'hidden_dim': 128, 'num_layers': 5, 'lr': 1e-3, 'weight_decay': 1e-4, 'dropout': 0.1},
+    'tox21': {'hidden_dim': 384, 'num_layers': 5, 'lr': 1e-3, 'weight_decay': 1e-4, 'dropout': 0.15},
+    'herg': {'hidden_dim': 512, 'num_layers': 5, 'lr': 1e-3, 'weight_decay': 1e-4, 'dropout': 0.1},
+}
+
 
 def set_seed(seed):
+    random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
 
-def get_dataset(name, seed):
-    """Load dataset with specific seed"""
-    if name.lower() in ['tox21', 'herg']:
-        from tdc.single_pred import Tox
-        if name.lower() == 'tox21':
-            data = Tox(name='tox21', label_name='NR-AR')
-        else:
-            data = Tox(name='herg')
-    else:
-        from tdc.single_pred import ADME
-        data = ADME(name=name)
+# ============== FEATURE EXTRACTION (SAME AS ORIGINAL) ==============
 
-    return data.get_split(method='scaffold', seed=seed)
-
-
-class GNNModel(nn.Module):
-    """Simple GCN model"""
-
-    def __init__(self, input_dim, hidden_dim, output_dim, num_layers, dropout):
-        super().__init__()
-        from torch_geometric.nn import GCNConv, global_mean_pool
-
-        self.convs = nn.ModuleList()
-        self.bns = nn.ModuleList()
-
-        self.convs.append(GCNConv(input_dim, hidden_dim))
-        self.bns.append(nn.BatchNorm1d(hidden_dim))
-
-        for _ in range(num_layers - 1):
-            self.convs.append(GCNConv(hidden_dim, hidden_dim))
-            self.bns.append(nn.BatchNorm1d(hidden_dim))
-
-        self.lin = nn.Linear(hidden_dim, output_dim)
-        self.dropout = dropout
-        self.pool = global_mean_pool
-
-    def forward(self, data):
-        x, edge_index, batch = data.x, data.edge_index, data.batch
-
-        for conv, bn in zip(self.convs, self.bns):
-            x = conv(x, edge_index)
-            x = bn(x)
-            x = torch.relu(x)
-            x = torch.dropout(x, p=self.dropout, train=self.training)
-
-        x = self.pool(x, batch)
-        return self.lin(x)
+def atom_features(atom):
+    """Same 8 atom features as original optimized_gnn.py"""
+    try:
+        return np.array([
+            atom.GetAtomicNum(),
+            atom.GetDegree(),
+            atom.GetFormalCharge(),
+            int(atom.GetHybridization()),
+            int(atom.GetIsAromatic()),
+            int(atom.IsInRing()),
+            atom.GetTotalNumHs(),
+            atom.GetMass(),
+        ], dtype=np.float32)
+    except Exception:
+        return np.zeros(8, dtype=np.float32)
 
 
-def smiles_to_graph(smiles):
-    """Convert SMILES to PyG Data"""
-    from rdkit import Chem
+def adme_descriptors(smiles: str) -> np.ndarray:
+    """Same 15 ADME descriptors as original"""
+    if not RDKit_OK:
+        return np.zeros(15, dtype=np.float32)
+
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return np.zeros(15, dtype=np.float32)
+
+    try:
+        mw = Descriptors.MolWt(mol)
+        logp = Descriptors.MolLogP(mol)
+        hbd = rdMolDescriptors.CalcNumHBD(mol)
+        hba = rdMolDescriptors.CalcNumHBA(mol)
+        tpsa = rdMolDescriptors.CalcTPSA(mol)
+        rotatable = Descriptors.NumRotatableBonds(mol)
+        aromatic_rings = rdMolDescriptors.CalcNumAromaticRings(mol)
+
+        return np.array([
+            mw, logp, hbd, hba, tpsa, rotatable, aromatic_rings,
+            int(mw > 500), int(logp > 5), int(hbd > 5), int(hba > 10),
+            Descriptors.MolMR(mol), Descriptors.BertzCT(mol),
+            rdMolDescriptors.CalcNumAliphaticRings(mol),
+            Descriptors.NumHeteroatoms(mol),
+        ], dtype=np.float32)
+    except Exception:
+        return np.zeros(15, dtype=np.float32)
+
+
+def caco2_wang_descriptors(smiles: str) -> np.ndarray:
+    """Same 7 Caco2 descriptors as original"""
+    if not RDKit_OK:
+        return np.zeros(7, dtype=np.float32)
+
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return np.zeros(7, dtype=np.float32)
+
+    try:
+        return np.array([
+            Descriptors.MolWt(mol), Descriptors.MolLogP(mol),
+            rdMolDescriptors.CalcNumHBD(mol), rdMolDescriptors.CalcNumHBA(mol),
+            rdMolDescriptors.CalcTPSA(mol), Descriptors.NumRotatableBonds(mol),
+            rdMolDescriptors.CalcNumAromaticRings(mol),
+        ], dtype=np.float32)
+    except Exception:
+        return np.zeros(7, dtype=np.float32)
+
+
+def smiles_to_graph(smiles, dataset_name=None):
+    """Convert SMILES to PyG Data object with ADME features"""
     from torch_geometric.data import Data
 
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return None
 
-    atoms = []
-    for atom in mol.GetAtoms():
-        atoms.append([
-            atom.GetAtomicNum(),
-            atom.GetDegree(),
-            atom.GetFormalCharge(),
-            int(atom.GetHybridization()),
-            int(atom.GetIsAromatic()),
-            atom.IsInRing(),
-            atom.GetTotalNumHs(),
-            atom.GetMass() / 100,
-            atom.GetNumRadicalElectrons()
-        ])
-
-    x = torch.tensor(atoms, dtype=torch.float)
+    atoms = [atom_features(atom) for atom in mol.GetAtoms()]
+    if len(atoms) == 0:
+        return None
+    x = torch.tensor(np.array(atoms), dtype=torch.float)
 
     edges = []
     for bond in mol.GetBonds():
@@ -141,247 +164,414 @@ def smiles_to_graph(smiles):
     else:
         edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
 
-    return Data(x=x, edge_index=edge_index)
+    if dataset_name == "Caco2_Wang":
+        descriptors = caco2_wang_descriptors(smiles)
+    else:
+        descriptors = adme_descriptors(smiles)
+
+    adme_features = torch.tensor(descriptors, dtype=torch.float32).view(1, -1)
+
+    return Data(x=x, edge_index=edge_index, adme_features=adme_features)
 
 
-def prepare_data(split, batch_size=32):
-    """Prepare DataLoaders"""
+# ============== MODEL ==============
+
+class GNNModel(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim, num_layers, dropout,
+                 task_type, adme_dim=15):
+        super().__init__()
+        from torch_geometric.nn import GCNConv, global_mean_pool, global_max_pool
+
+        self.convs = nn.ModuleList()
+        self.bns = nn.ModuleList()
+
+        self.convs.append(GCNConv(input_dim, hidden_dim))
+        self.bns.append(nn.BatchNorm1d(hidden_dim))
+
+        for _ in range(num_layers - 1):
+            self.convs.append(GCNConv(hidden_dim, hidden_dim))
+            self.bns.append(nn.BatchNorm1d(hidden_dim))
+
+        self.dropout = dropout
+        self.task_type = task_type
+        self.mean_pool = global_mean_pool
+        self.max_pool = global_max_pool
+
+        graph_embed_dim = hidden_dim * 2
+        combined_dim = graph_embed_dim + adme_dim
+
+        self.head = nn.Sequential(
+            nn.Linear(combined_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(64, output_dim),
+        )
+
+    def forward(self, data):
+        x, edge_index, batch = data.x, data.edge_index, data.batch
+
+        for conv, bn in zip(self.convs, self.bns):
+            x = conv(x, edge_index)
+            x = bn(x)
+            x = F.relu(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+
+        x_mean = self.mean_pool(x, batch)
+        x_max = self.max_pool(x, batch)
+        x = torch.cat([x_mean, x_max], dim=1)
+
+        adme = data.adme_features.view(x.size(0), -1)
+        x = torch.cat([x, adme], dim=1)
+
+        return self.head(x)
+
+
+# ============== DATA PREPARATION ==============
+
+def is_classification_dataset(dataset_name: str) -> bool:
+    classification_datasets = ['tox21', 'herg', 'clintox', 'ames', 'dili']
+    return any(ds in dataset_name.lower() for ds in classification_datasets)
+
+
+def prepare_data(dataset_name, val_fraction=0.1, seed=42, batch_size=32):
+    """Prepare data with SAME preprocessing as original"""
+    from tdc.single_pred import ADME, Tox
     from torch_geometric.loader import DataLoader
 
-    graphs = {'train': [], 'valid': [], 'test': []}
+    is_classification = is_classification_dataset(dataset_name)
 
-    for split_name, df in [('train', split['train']), ('valid', split['valid']), ('test', split['test'])]:
-        for _, row in df.iterrows():
-            g = smiles_to_graph(row['Drug'])
-            if g is not None:
-                y = row['Y']
-                if not np.isnan(y):
-                    g.y = torch.tensor([y], dtype=torch.float)
-                    graphs[split_name].append(g)
+    if is_classification:
+        tox_labels = {'tox21': 'NR-AR', 'herg': None}
+        label = tox_labels.get(dataset_name.lower())
+        if label:
+            data_api = Tox(name=dataset_name, label_name=label)
+        else:
+            data_api = Tox(name=dataset_name)
+    else:
+        data_api = ADME(name=dataset_name)
 
-    train_loader = DataLoader(graphs['train'], batch_size=batch_size, shuffle=True)
-    valid_loader = DataLoader(graphs['valid'], batch_size=batch_size)
-    test_loader = DataLoader(graphs['test'], batch_size=batch_size)
+    # TDC 2-way split (same as original)
+    split = data_api.get_split(method="scaffold")
 
-    return train_loader, valid_loader, test_loader
+    # Create graphs
+    train_graphs = []
+    for _, row in split['train'].iterrows():
+        g = smiles_to_graph(row['Drug'], dataset_name)
+        if g is not None and not np.isnan(row['Y']):
+            g.original_y = float(row['Y'])
+            train_graphs.append(g)
+
+    test_graphs = []
+    for _, row in split['test'].iterrows():
+        g = smiles_to_graph(row['Drug'], dataset_name)
+        if g is not None and not np.isnan(row['Y']):
+            g.original_y = float(row['Y'])
+            test_graphs.append(g)
+
+    # Manual train/val split with seed
+    rng = random.Random(seed)
+    rng.shuffle(train_graphs)
+
+    n_val = max(1, int(len(train_graphs) * val_fraction))
+    val_graphs = train_graphs[:n_val]
+    train_graphs = train_graphs[n_val:]
+
+    y_train = np.array([g.original_y for g in train_graphs], dtype=np.float32)
+    y_val = np.array([g.original_y for g in val_graphs], dtype=np.float32)
+    y_all = np.concatenate([y_train, y_val])
+
+    if is_classification:
+        for g in train_graphs + val_graphs + test_graphs:
+            g.y = torch.tensor([float(g.original_y)], dtype=torch.float32)
+        mu, sigma = 0.0, 1.0
+        is_log_transformed = False
+    else:
+        all_negative = np.all(y_all < 0)
+
+        if all_negative:
+            y_log = y_train.astype(np.float32)
+            mu = float(y_log.mean())
+            sigma = float(y_log.std())
+            if sigma < 1e-6:
+                sigma = 1.0
+
+            for g in train_graphs + val_graphs + test_graphs:
+                g.y = torch.tensor([(g.original_y - mu) / sigma], dtype=torch.float32)
+            is_log_transformed = True
+        else:
+            clip_min = 1e-3 if dataset_name != "Caco2_Wang" else 1e-6
+
+            if dataset_name == "Caco2_Wang":
+                positive_values = y_all[y_all > 0]
+                if len(positive_values) > 0:
+                    clip_min = max(float(positive_values.min()) / 1000.0, 1e-9)
+
+            y_train_clipped = np.clip(y_train, clip_min, None)
+            y_log = np.log(y_train_clipped)
+            mu = float(y_log.mean())
+            sigma = float(y_log.std())
+            if sigma < 1e-6:
+                sigma = 1.0
+
+            for g in train_graphs + val_graphs + test_graphs:
+                y_value = max(clip_min, float(g.original_y))
+                g.y = torch.tensor([(np.log(y_value) - mu) / sigma], dtype=torch.float32)
+            is_log_transformed = False
+
+    # ADME normalization
+    adme_dim = train_graphs[0].adme_features.shape[1]
+    adme_train = np.stack([g.adme_features.squeeze(0).numpy() for g in train_graphs])
+    adme_mu = torch.tensor(adme_train.mean(0), dtype=torch.float32)
+    adme_sigma = torch.tensor(adme_train.std(0), dtype=torch.float32)
+    adme_sigma[adme_sigma == 0] = 1.0
+
+    for g in train_graphs + val_graphs + test_graphs:
+        g.adme_features = (g.adme_features - adme_mu.unsqueeze(0)) / adme_sigma.unsqueeze(0)
+
+    train_loader = DataLoader(train_graphs, batch_size=batch_size, shuffle=True)
+    valid_loader = DataLoader(val_graphs, batch_size=batch_size)
+    test_loader = DataLoader(test_graphs, batch_size=batch_size)
+
+    return {
+        'train_loader': train_loader,
+        'valid_loader': valid_loader,
+        'test_loader': test_loader,
+        'log_stats': (mu, sigma),
+        'is_log_transformed': is_log_transformed,
+        'adme_dim': adme_dim,
+        'is_classification': is_classification,
+    }
 
 
-def train_and_evaluate(dataset_name, task_type, params, seed, device):
-    """Train and evaluate model with given seed"""
+# ============== TRAINING & EVALUATION ==============
 
+def train_epoch(model, loader, optimizer, criterion, device):
+    model.train()
+    total_loss = 0
+    for data in loader:
+        data = data.to(device)
+        optimizer.zero_grad()
+        out = model(data)
+        loss = criterion(out.squeeze(), data.y.squeeze())
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item() * data.num_graphs
+    return total_loss / len(loader.dataset)
+
+
+def evaluate(model, loader, device, is_classification, mu=0.0, sigma=1.0, is_log_transformed=False):
+    model.eval()
+    preds, labels = [], []
+
+    with torch.no_grad():
+        for data in loader:
+            data = data.to(device)
+            out = model(data)
+            preds.append(out.squeeze().cpu().numpy())
+            labels.append(data.y.squeeze().cpu().numpy())
+
+    preds = np.concatenate(preds)
+    labels = np.concatenate(labels)
+
+    if is_classification:
+        try:
+            auc = roc_auc_score(labels, preds)
+        except:
+            auc = 0.5
+        return {'auc': auc, 'val_metric': auc}
+    else:
+        preds_log = preds * sigma + mu
+        labels_log = labels * sigma + mu
+
+        preds_orig = np.exp(preds_log)
+        labels_orig = np.exp(labels_log)
+
+        rmse_log = np.sqrt(mean_squared_error(labels_log, preds_log))
+        mae_log = mean_absolute_error(labels_log, preds_log)
+        rmse_orig = np.sqrt(mean_squared_error(labels_orig, preds_orig))
+
+        return {
+            'rmse_log': rmse_log,
+            'mae_log': mae_log,
+            'rmse_orig': rmse_orig,
+            'val_metric': rmse_orig,
+        }
+
+
+def run_single_seed(dataset_name, seed, params, device):
+    """Run training for a single seed"""
     set_seed(seed)
 
-    # Load data
-    split = get_dataset(dataset_name, seed)
-    train_loader, valid_loader, test_loader = prepare_data(split)
+    data_info = prepare_data(dataset_name, val_fraction=0.1, seed=seed, batch_size=32)
+    is_classification = data_info['is_classification']
+    mu, sigma = data_info['log_stats']
 
-    # Create model
     model = GNNModel(
-        input_dim=9,
+        input_dim=8,
         hidden_dim=params['hidden_dim'],
         output_dim=1,
         num_layers=params['num_layers'],
-        dropout=params['dropout']
+        dropout=params['dropout'],
+        task_type='classification' if is_classification else 'regression',
+        adme_dim=data_info['adme_dim'],
     ).to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=params['lr'])
-    criterion = nn.BCEWithLogitsLoss() if task_type == 'classification' else nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=params['lr'], weight_decay=params['weight_decay'])
+    criterion = nn.BCEWithLogitsLoss() if is_classification else nn.MSELoss()
 
-    best_val = float('inf') if task_type == 'regression' else 0
+    best_val = float('inf') if not is_classification else 0.0
+    best_state = None
     patience_counter = 0
-    best_model_state = None
 
-    # Training
     for epoch in range(MAX_EPOCHS):
-        model.train()
-        for data in train_loader:
-            data = data.to(device)
-            optimizer.zero_grad()
-            out = model(data)
-            loss = criterion(out.squeeze(), data.y)
-            loss.backward()
-            optimizer.step()
+        train_epoch(model, data_info['train_loader'], optimizer, criterion, device)
+        val_metrics = evaluate(model, data_info['valid_loader'], device, is_classification, mu, sigma, data_info['is_log_transformed'])
 
-        # Validation
-        model.eval()
-        val_preds, val_labels = [], []
-        with torch.no_grad():
-            for data in valid_loader:
-                data = data.to(device)
-                out = model(data)
-                val_preds.extend(out.cpu().numpy().flatten())
-                val_labels.extend(data.y.cpu().numpy().flatten())
+        val_metric = val_metrics['auc'] if is_classification else val_metrics['val_metric']
 
-        val_preds = np.array(val_preds)
-        val_labels = np.array(val_labels)
-
-        if task_type == 'classification':
-            val_metric = roc_auc_score(val_labels, val_preds)
-            improved = val_metric > best_val
-        else:
-            val_metric = np.sqrt(mean_squared_error(val_labels, val_preds))
-            improved = val_metric < best_val
-
-        if improved:
+        if (is_classification and val_metric > best_val) or (not is_classification and val_metric < best_val):
             best_val = val_metric
+            best_state = model.state_dict().copy()
             patience_counter = 0
-            best_model_state = model.state_dict().copy()
         else:
             patience_counter += 1
-            if patience_counter >= PATIENCE:
-                break
 
-    # Load best model and test
-    if best_model_state:
-        model.load_state_dict(best_model_state)
+        if patience_counter >= PATIENCE:
+            break
 
-    model.eval()
-    test_preds, test_labels = [], []
-    with torch.no_grad():
-        for data in test_loader:
-            data = data.to(device)
-            out = model(data)
-            test_preds.extend(out.cpu().numpy().flatten())
-            test_labels.extend(data.y.cpu().numpy().flatten())
+    model.load_state_dict(best_state)
+    test_metrics = evaluate(model, data_info['test_loader'], device, is_classification, mu, sigma, data_info['is_log_transformed'])
 
-    test_preds = np.array(test_preds)
-    test_labels = np.array(test_labels)
+    return test_metrics
 
+
+def run_multi_seed_validation(dataset_name, task_type):
+    """Run multi-seed validation for a dataset"""
+    print(f"\n{'='*60}")
+    print(f"Multi-Seed Validation: {dataset_name} ({task_type})")
+    print(f"Seeds: {SEEDS}")
+    print(f"{'='*60}")
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    params = BEST_PARAMS.get(dataset_name, BEST_PARAMS['Caco2_Wang'])
+
+    all_results = []
+
+    for seed in SEEDS:
+        print(f"\n  Running seed {seed}...")
+        metrics = run_single_seed(dataset_name, seed, params, device)
+        all_results.append(metrics)
+
+        if task_type == 'classification':
+            print(f"    AUC: {metrics['auc']:.4f}")
+        else:
+            print(f"    RMSE (log): {metrics['rmse_log']:.4f}, MAE (log): {metrics['mae_log']:.4f}")
+
+    # Aggregate results
     if task_type == 'classification':
-        test_metric = roc_auc_score(test_labels, test_preds)
+        aucs = [r['auc'] for r in all_results]
+        summary = {
+            'dataset': dataset_name,
+            'task_type': task_type,
+            'auc_mean': np.mean(aucs),
+            'auc_std': np.std(aucs),
+            'auc_values': aucs,
+            'ci_lower': np.mean(aucs) - 1.96 * np.std(aucs) / np.sqrt(len(aucs)),
+            'ci_upper': np.mean(aucs) + 1.96 * np.std(aucs) / np.sqrt(len(aucs)),
+        }
     else:
-        test_metric = np.sqrt(mean_squared_error(test_labels, test_preds))
+        rmse_logs = [r['rmse_log'] for r in all_results]
+        mae_logs = [r['mae_log'] for r in all_results]
+        rmse_origs = [r['rmse_orig'] for r in all_results]
 
-    return {
-        'seed': seed,
-        'best_val_metric': best_val,
-        'test_metric': test_metric
-    }
+        summary = {
+            'dataset': dataset_name,
+            'task_type': task_type,
+            'rmse_log_mean': np.mean(rmse_logs),
+            'rmse_log_std': np.std(rmse_logs),
+            'mae_log_mean': np.mean(mae_logs),
+            'mae_log_std': np.std(mae_logs),
+            'rmse_orig_mean': np.mean(rmse_origs),
+            'rmse_orig_std': np.std(rmse_origs),
+            'rmse_log_values': rmse_logs,
+            'mae_log_values': mae_logs,
+            'ci_lower': np.mean(rmse_logs) - 1.96 * np.std(rmse_logs) / np.sqrt(len(rmse_logs)),
+            'ci_upper': np.mean(rmse_logs) + 1.96 * np.std(rmse_logs) / np.sqrt(len(rmse_logs)),
+        }
+
+    print(f"\n  Summary:")
+    if task_type == 'classification':
+        print(f"    AUC: {summary['auc_mean']:.4f} ± {summary['auc_std']:.4f}")
+        print(f"    95% CI: [{summary['ci_lower']:.4f}, {summary['ci_upper']:.4f}]")
+    else:
+        print(f"    RMSE (log): {summary['rmse_log_mean']:.4f} ± {summary['rmse_log_std']:.4f}")
+        print(f"    MAE (log): {summary['mae_log_mean']:.4f} ± {summary['mae_log_std']:.4f}")
+        print(f"    95% CI: [{summary['ci_lower']:.4f}, {summary['ci_upper']:.4f}]")
+
+    return summary
 
 
-def compute_statistics(results):
-    """Compute mean, std, CI"""
-    values = [r['test_metric'] for r in results]
-
-    mean = np.mean(values)
-    std = np.std(values, ddof=1)
-    n = len(values)
-
-    # 95% CI
-    ci = stats.t.interval(0.95, n-1, loc=mean, scale=std/np.sqrt(n))
-
-    return {
-        'mean': mean,
-        'std': std,
-        'min': np.min(values),
-        'max': np.max(values),
-        'ci_lower': ci[0],
-        'ci_upper': ci[1],
-        'values': values
-    }
-
-
-def run_multi_seed_benchmark():
-    """Run multi-seed benchmark"""
+def main():
+    print("="*60)
+    print("Multi-Seed Validation (FIXED - Consistent with Original HPO)")
+    print("="*60)
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"\n{'='*70}")
-    print("MULTI-SEED VALIDATION")
-    print(f"{'='*70}")
-    print(f"Device: {device}")
-    print(f"Seeds: {SEEDS}")
-    print(f"Datasets: {len(DATASETS)}")
-    print(f"{'='*70}\n")
 
     all_results = {}
 
     for dataset_name, task_type in DATASETS.items():
-        print(f"\n{'='*60}")
-        print(f"DATASET: {dataset_name} ({task_type})")
-        print(f"{'='*60}")
-
-        params = BEST_PARAMS.get(dataset_name, BEST_PARAMS['Caco2_Wang'])
-        seed_results = []
-
-        for seed in SEEDS:
-            print(f"  Seed {seed}...", end=' ')
-            try:
-                result = train_and_evaluate(dataset_name, task_type, params, seed, device)
-                seed_results.append(result)
-                print(f"test={result['test_metric']:.4f}")
-            except Exception as e:
-                print(f"ERROR: {e}")
-
-        # Compute statistics
-        stats_result = compute_statistics(seed_results)
-        all_results[dataset_name] = stats_result
-
-        metric_name = 'AUC' if task_type == 'classification' else 'RMSE'
-        print(f"\n  Summary: {stats_result['mean']:.4f} +/- {stats_result['std']:.4f} ({metric_name})")
-        print(f"  95% CI: [{stats_result['ci_lower']:.4f}, {stats_result['ci_upper']:.4f}]")
+        try:
+            summary = run_multi_seed_validation(dataset_name, task_type)
+            all_results[dataset_name] = summary
+        except Exception as e:
+            print(f"Error on {dataset_name}: {e}")
+            import traceback
+            traceback.print_exc()
 
     # Save results
-    save_results(all_results)
+    with open(os.path.join(OUTPUT_DIR, 'multi_seed_results_fixed.json'), 'w') as f:
+        json.dump(all_results, f, indent=2, default=str)
 
-    return all_results
-
-
-def save_results(results):
-    """Save results to files"""
-
-    # JSON
-    with open(f"{OUTPUT_DIR}/multi_seed_results.json", 'w') as f:
-        def convert(obj):
-            if isinstance(obj, np.floating):
-                return float(obj)
-            if isinstance(obj, np.ndarray):
-                return obj.tolist()
-            return obj
-        json.dump(results, f, indent=2, default=convert)
-
-    # CSV summary
+    # Create summary table
     rows = []
-    for dataset, stats in results.items():
-        rows.append({
-            'Dataset': dataset,
-            'Mean': stats['mean'],
-            'Std': stats['std'],
-            'CI_Lower': stats['ci_lower'],
-            'CI_Upper': stats['ci_upper'],
-            'Min': stats['min'],
-            'Max': stats['max'],
-            'Result': f"{stats['mean']:.4f} +/- {stats['std']:.4f}"
-        })
+    for name, r in all_results.items():
+        if r['task_type'] == 'classification':
+            rows.append({
+                'Dataset': name,
+                'Task': 'classification',
+                'AUC_Mean': r['auc_mean'],
+                'AUC_Std': r['auc_std'],
+                'CI_Lower': r['ci_lower'],
+                'CI_Upper': r['ci_upper'],
+            })
+        else:
+            rows.append({
+                'Dataset': name,
+                'Task': 'regression',
+                'RMSE_log_Mean': r['rmse_log_mean'],
+                'RMSE_log_Std': r['rmse_log_std'],
+                'MAE_log_Mean': r['mae_log_mean'],
+                'MAE_log_Std': r['mae_log_std'],
+                'CI_Lower': r['ci_lower'],
+                'CI_Upper': r['ci_upper'],
+            })
 
     df = pd.DataFrame(rows)
-    df.to_csv(f"{OUTPUT_DIR}/multi_seed_summary.csv", index=False)
+    df.to_csv(os.path.join(OUTPUT_DIR, 'multi_seed_summary_fixed.csv'), index=False)
 
-    # LaTeX table
-    latex = r"""
-\begin{table}[htbp]
-\caption{Multi-seed validation results (mean $\pm$ std, n=5 seeds)}
-\label{tab:multi_seed}
-\centering
-\begin{tabular}{lccc}
-\toprule
-\textbf{Dataset} & \textbf{Mean} & \textbf{Std} & \textbf{95\% CI} \\
-\midrule
-"""
-    for row in rows:
-        latex += f"{row['Dataset']} & {row['Mean']:.4f} & {row['Std']:.4f} & [{row['CI_Lower']:.4f}, {row['CI_Upper']:.4f}] \\\\\n"
-
-    latex += r"""
-\bottomrule
-\end{tabular}
-\end{table}
-"""
-    with open(f"{OUTPUT_DIR}/multi_seed_table.tex", 'w') as f:
-        f.write(latex)
-
-    print(f"\nResults saved to: {OUTPUT_DIR}")
+    print("\n" + "="*60)
+    print("FINAL SUMMARY")
+    print("="*60)
+    print(df.to_string(index=False))
+    print(f"\nResults saved to {OUTPUT_DIR}")
 
 
-if __name__ == "__main__":
-    run_multi_seed_benchmark()
+if __name__ == '__main__':
+    main()

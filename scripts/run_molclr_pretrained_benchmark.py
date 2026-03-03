@@ -212,6 +212,25 @@ def run_molclr_benchmark():
             t1 = time.time()
 
             if is_classification:
+                # Use oversampling to handle class imbalance (Tox21 has ~3.5% positive)
+                from imblearn.over_sampling import RandomOverSampler
+                from sklearn.utils.class_weight import compute_class_weight
+
+                classes = np.unique(y_train_scaled)
+                if len(classes) == 2:
+                    class_weights = compute_class_weight('balanced', classes=classes, y=y_train_scaled)
+                    n_pos = sum(y_train_scaled == 1)
+                    n_neg = sum(y_train_scaled == 0)
+                    print(f"  Class balance: {n_pos} pos / {n_neg} neg")
+                    print(f"  Class weights: {dict(zip(classes.astype(int), class_weights))}")
+
+                    # Oversample minority class
+                    ros = RandomOverSampler(random_state=SEED)
+                    X_train_resampled, y_train_resampled = ros.fit_resample(X_train, y_train_scaled)
+                    print(f"  After oversampling: {len(X_train_resampled)} samples")
+                else:
+                    X_train_resampled, y_train_resampled = X_train, y_train_scaled
+
                 predictor = MLPClassifier(
                     hidden_layer_sizes=(256, 128),
                     max_iter=500,
@@ -227,7 +246,10 @@ def run_molclr_benchmark():
                     random_state=SEED
                 )
 
-            predictor.fit(X_train, y_train_scaled)
+            if is_classification:
+                predictor.fit(X_train_resampled, y_train_resampled)
+            else:
+                predictor.fit(X_train, y_train_scaled)
             train_time = time.time() - t1
 
             # Evaluate

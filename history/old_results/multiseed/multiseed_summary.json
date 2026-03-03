@@ -1,0 +1,74 @@
+[
+  {
+    "Dataset": "Caco2_Wang",
+    "Task": "Regression",
+    "Primary_Metric": "RMSE",
+    "Mean": 0.003025095211341977,
+    "Std": 0.0003336743294984129,
+    "Mean_pm_Std": "0.0030 \u00b1 0.0003",
+    "R2_Mean": 0.34704862038294476,
+    "R2_Std": 0.1400589618567502,
+    "AUC_Mean": NaN,
+    "AUC_Std": NaN
+  },
+  {
+    "Dataset": "Half_Life_Obach",
+    "Task": "Regression",
+    "Primary_Metric": "RMSE",
+    "Mean": 21.045621236165363,
+    "Std": 1.8118480988467702,
+    "Mean_pm_Std": "21.0456 \u00b1 1.8118",
+    "R2_Mean": 0.054673612117767334,
+    "R2_Std": 0.16599368905439796,
+    "AUC_Mean": NaN,
+    "AUC_Std": NaN
+  },
+  {
+    "Dataset": "Clearance_Hepatocyte_AZ",
+    "Task": "Regression",
+    "Primary_Metric": "RMSE",
+    "Mean": 96.87791442871094,
+    "Std": 76.11702002226481,
+    "Mean_pm_Std": "96.8779 \u00b1 76.1170",
+    "R2_Mean": -3.49212110042572,
+    "R2_Std": 5.642920659414404,
+    "AUC_Mean": NaN,
+    "AUC_Std": NaN
+  },
+  {
+    "Dataset": "Clearance_Microsome_AZ",
+    "Task": "Regression",
+    "Primary_Metric": "RMSE",
+    "Mean": 39.85271326700846,
+    "Std": 1.3892563575409627,
+    "Mean_pm_Std": "39.8527 \u00b1 1.3893",
+    "R2_Mean": 0.14353913068771362,
+    "R2_Std": 0.059146438905609486,
+    "AUC_Mean": NaN,
+    "AUC_Std": NaN
+  },
+  {
+    "Dataset": "tox21",
+    "Task": "Classification",
+    "Primary_Metric": "F1",
+    "Mean": 0.4729780801209373,
+    "Std": 0.03373055571201314,
+    "Mean_pm_Std": "0.4730 \u00b1 0.0337",
+    "R2_Mean": NaN,
+    "R2_Std": NaN,
+    "AUC_Mean": 0.7325574285073683,
+    "AUC_Std": 0.005906684605647045
+  },
+  {
+    "Dataset": "herg",
+    "Task": "Classification",
+    "Primary_Metric": "F1",
+    "Mean": 0.8554518552242203,
+    "Std": 0.024445060339009873,
+    "Mean_pm_Std": "0.8555 \u00b1 0.0244",
+    "R2_Mean": NaN,
+    "R2_Std": NaN,
+    "AUC_Mean": 0.7398625429553265,
+    "AUC_Std": 0.020880584832651643
+  }
+]

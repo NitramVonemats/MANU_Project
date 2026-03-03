@@ -1,0 +1,39 @@
+{
+  "model_type": "morgan",
+  "algo": "random",
+  "dataset": "herg",
+  "seed": 42,
+  "search": {
+    "trials": 5,
+    "best_val_loss": 0.24,
+    "best_params": {
+      "proj_dim": 384,
+      "hidden_dims": [
+        384,
+        64
+      ],
+      "lr": 0.008123245085588687,
+      "weight_decay": 0.002136832907235874,
+      "dropout": 0.10616955533913808,
+      "n_bits": 2048,
+      "radius": 2
+    }
+  },
+  "final_training": {
+    "train_time": 0.30254411697387695,
+    "extract_time": 0.6533060073852539,
+    "val_metrics": {
+      "auc_roc": 0.647,
+      "accuracy": 0.5692307692307692,
+      "f1": 0.6410256410256411
+    },
+    "test_metrics": {
+      "auc_roc": 0.7103092783505156,
+      "accuracy": 0.6818181818181818,
+      "f1": 0.7666666666666667
+    },
+    "n_train": 458,
+    "n_valid": 65,
+    "n_test": 132
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "dataset": "Clearance_Microsome_AZ",
+  "task_type": "regression",
+  "best_val_metric": 1.1666398158843687,
+  "epochs_trained": 16,
+  "test_rmse_orig": 44.45055737312244,
+  "test_rmse_log": 1.4581642143643687,
+  "test_mae_log": 1.1409145593643188,
+  "test_metric": 1.4581642143643687
+}

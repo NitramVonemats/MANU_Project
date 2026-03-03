@@ -85,14 +85,16 @@ Statistical robustness with 95% confidence intervals:
 
 ## Foundation Model Comparison
 
-| Model | Caco2 (RMSE) | Half_Life (RMSE) | Tox21 (AUC) | hERG (AUC) |
-|-------|--------------|------------------|-------------|------------|
-| GNN-Best | **0.0027** | **21.66** | **0.743** | **0.825** |
-| Morgan-FP | 0.614 | 22.12 | 0.722 | 0.611 |
-| ChemBERTa | 0.496 | 27.39 | 0.728 | 0.770 |
-| ChemBERTa-FT | 0.506 | 21.99 | 0.735 | **0.791** |
-| MolE-FP | 0.670 | 25.01 | 0.675 | 0.672 |
-| MolCLR | 0.713 | 21.97 | 0.538 | 0.504 |
+| Model | Caco2 (RMSE) | Half_Life (RMSE) | Clear_Hep (RMSE) | Clear_Micro (RMSE) | Tox21 (AUC) | hERG (AUC) |
+|-------|--------------|------------------|-------------------|---------------------|-------------|------------|
+| GNN-Best | **0.0027** | **21.66** | 68.22 | **38.75** | **0.743** | **0.825** |
+| Morgan-FP | 0.614 | 22.12 | 48.36 | 40.36 | 0.722 | 0.611 |
+| ChemBERTa | 0.496 | 27.39 | **47.31** | 42.56 | 0.728 | 0.770 |
+| ChemBERTa-FT | 0.506 | 21.99 | 52.60 | 42.87 | 0.735 | 0.791 |
+| MolE-FP | 0.670 | 25.01 | 47.22 | 41.79 | 0.675 | 0.672 |
+| MolCLR | 0.713 | 21.97 | 48.71 | 43.33 | 0.538 | 0.504 |
+
+> **Note:** GNN wins on 4/6 datasets. Foundation models (ChemBERTa, MolE-FP) outperform GNN on Clearance_Hepatocyte.
 
 ---
 

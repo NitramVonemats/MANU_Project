@@ -1,0 +1,8 @@
+{
+  "dataset": "herg",
+  "task_type": "classification",
+  "best_val_metric": 0.8210000000000001,
+  "epochs_trained": 19,
+  "test_auc": 0.7901325478645066,
+  "test_metric": 0.7901325478645066
+}

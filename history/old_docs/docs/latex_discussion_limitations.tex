@@ -1,0 +1,148 @@
+% ==============================================================================
+% DISCUSSION - Limitations and Future Work
+% Ready to paste into IEEE/ACM format paper
+% Generated: 2026-01-19
+% ==============================================================================
+
+\subsection{Limitations and Future Work}
+\label{sec:limitations}
+
+While our systematic evaluation demonstrates the effectiveness of GNN models with
+hyperparameter optimization for molecular property prediction, several limitations
+should be acknowledged:
+
+% ------------------------------------------------------------------------------
+% 1. Single Random Seed
+% ------------------------------------------------------------------------------
+\textbf{Statistical Variance.}
+Our experiments used a single fixed random seed (\texttt{seed=42}) for reproducibility.
+While this ensures consistent splits and comparable results across models, it does not
+capture variance arising from different random initializations. Ideally, experiments
+should be repeated with multiple random seeds (e.g., 5--10 runs) to report mean $\pm$
+standard deviation and conduct statistical significance tests (e.g., paired t-test,
+Wilcoxon signed-rank test). Variance reported in our results reflects differences
+across hyperparameter trials (10 per algorithm) and optimization algorithms (6 total),
+but not across random seeds. Future work should include multi-seed evaluation with
+confidence intervals and statistical significance testing.
+
+% ------------------------------------------------------------------------------
+% 2. Foundation Models Not Fine-tuned
+% ------------------------------------------------------------------------------
+\textbf{Foundation Model Comparison.}
+Due to computational constraints (CPU-only training environment), ChemBERTa was used
+as a \emph{frozen feature extractor} without task-specific fine-tuning. While this
+represents a realistic low-resource scenario, it may underestimate the full potential
+of foundation models. A fully fair comparison would require:
+\begin{itemize}[noitemsep,topsep=0pt]
+    \item Fine-tuning ChemBERTa on each target task with similar HPO budget as GNN models
+    \item GPU-accelerated training for all methods to enable larger models and longer training
+    \item Hyperparameter optimization for downstream predictors of foundation models
+          (e.g., MLP architecture, learning rate schedules)
+\end{itemize}
+
+Therefore, our results demonstrate that GNN models with systematic HPO can outperform
+foundation models \emph{when the latter are used in feature-extraction mode without
+fine-tuning}, which is a common practical scenario for researchers with limited
+computational resources.
+
+% ------------------------------------------------------------------------------
+% 3. Tox21 Single-task
+% ------------------------------------------------------------------------------
+\textbf{Multi-task Learning.}
+For the Tox21 dataset, we evaluated only the NR-AR (Nuclear Receptor - Androgen Receptor)
+assay as a single-task binary classification problem. However, Tox21 comprises 12
+distinct nuclear receptor assays, offering an opportunity for multi-task learning
+(MTL)~\cite{caruana1997multitask}. MTL approaches could potentially leverage shared
+representations across related toxicity assays to improve performance, especially for
+low-data tasks. Future work should:
+\begin{itemize}[noitemsep,topsep=0pt]
+    \item Implement multi-task GNN architectures with shared encoders and task-specific heads
+    \item Report macro-averaged and micro-averaged metrics across all 12 assays
+    \item Investigate transfer learning from data-rich to data-poor tasks
+\end{itemize}
+
+% ------------------------------------------------------------------------------
+% 4. Dataset Scale
+% ------------------------------------------------------------------------------
+\textbf{Dataset Scale and Molecular Diversity.}
+Our evaluation focused on 6 datasets with a combined total of 12,683 molecules.
+While these datasets are standard benchmarks from TDC~\cite{huang2021therapeutics},
+they are relatively small compared to large-scale drug discovery datasets (e.g.,
+ChEMBL with $>$2 million compounds, ZINC15 with $>$230 million). Performance on larger
+and more chemically diverse datasets may differ, particularly for foundation models
+which benefit from large-scale pretraining. Evaluation on larger benchmarks such as
+MoleculeNet~\cite{wu2018moleculenet}, PCBA, or proprietary pharmaceutical datasets
+would strengthen the generalizability of our findings.
+
+% ------------------------------------------------------------------------------
+% 5. Computational Resources
+% ------------------------------------------------------------------------------
+\textbf{Computational Constraints.}
+All experiments were conducted on CPU (Intel Core i7) without GPU acceleration,
+limiting the scale of models and hyperparameter search. This constraint may have
+disproportionately affected deeper GNN models and foundation model fine-tuning.
+GPU-accelerated experiments would enable:
+\begin{itemize}[noitemsep,topsep=0pt]
+    \item Larger hidden dimensions and deeper architectures
+    \item Longer training with more epochs
+    \item Larger population sizes and more iterations in metaheuristic HPO algorithms
+    \item Full fine-tuning of transformer-based foundation models (ChemBERTa, MolBERT)
+\end{itemize}
+
+Nevertheless, our CPU-based results are valuable for practitioners with limited
+computational budgets and demonstrate that systematic HPO can yield competitive
+performance even in resource-constrained settings.
+
+% ------------------------------------------------------------------------------
+% 6. HPO Algorithm Selection
+% ------------------------------------------------------------------------------
+\textbf{HPO Algorithm Analysis.}
+While we evaluated 6 metaheuristic optimization algorithms, more recent HPO methods
+such as Bayesian Optimization with Gaussian Processes~\cite{snoek2012practical},
+Tree-structured Parzen Estimators (TPE)~\cite{bergstra2011tpe}, or Hyperband~\cite{li2017hyperband}
+may offer improved efficiency and performance. Future work should compare metaheuristic
+approaches against modern Bayesian and bandit-based methods, potentially using tools
+like Optuna~\cite{akiba2019optuna} or Ray Tune~\cite{liaw2018ray}.
+
+% ------------------------------------------------------------------------------
+% Future Directions
+% ------------------------------------------------------------------------------
+\subsection{Future Directions}
+
+Building on our systematic evaluation framework, several promising research directions
+emerge:
+
+\begin{enumerate}[noitemsep,topsep=0pt]
+    \item \textbf{3D Molecular Conformations}: Incorporate 3D geometric information
+          using E(3)-equivariant GNNs~\cite{satorras2021egnn} or SchNet~\cite{schutt2017schnet}
+          for properties dependent on molecular geometry (e.g., binding affinity).
+
+    \item \textbf{Self-supervised Pretraining}: Pretrain GNN encoders on large unlabeled
+          molecular datasets using contrastive learning~\cite{you2020graph} or masked
+          graph modeling, then fine-tune on downstream ADMET tasks.
+
+    \item \textbf{Automated Machine Learning (AutoML)}: Extend HPO framework to jointly
+          optimize architecture (NAS), hyperparameters, and data augmentation strategies
+          using meta-learning or neural architecture search.
+
+    \item \textbf{Explainability}: Integrate attention visualization, GNNExplainer~\cite{ying2019gnnexplainer},
+          or subgraph extraction methods to identify molecular substructures driving
+          predictions, enabling medicinal chemistry insights.
+
+    \item \textbf{Uncertainty Quantification}: Incorporate Bayesian neural networks,
+          Monte Carlo dropout~\cite{gal2016dropout}, or ensemble methods to provide
+          calibrated uncertainty estimates for drug discovery decision-making.
+
+    \item \textbf{Active Learning}: Combine HPO-optimized GNN models with acquisition
+          functions to guide experimental design and prioritize molecules for synthesis
+          and testing.
+\end{enumerate}
+
+% ------------------------------------------------------------------------------
+% Conclusion Statement
+% ------------------------------------------------------------------------------
+Despite these limitations, our work provides the first systematic comparison of six
+metaheuristic HPO algorithms for molecular GNN models across multiple ADMET prediction
+tasks. The consistent superiority of PSO and SA, combined with GNN outperformance of
+foundation models in feature-extraction mode, offers actionable insights for researchers
+developing machine learning pipelines for drug discovery under computational constraints.

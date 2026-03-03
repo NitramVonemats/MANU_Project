@@ -1,12 +1,14 @@
 """
-ChemBERTa Fine-tuning for ADMET Prediction
-Unfreezes last N layers for task-specific training
+ChemBERTa Fine-tuning for ADMET Prediction - FIXED VERSION
+Matches preprocessing from optimized_gnn.py:
+- Uses TDC 2-way split then manual 90/10 train/val split
+- Uses clip_min=1e-3 for non-Caco2 datasets
+- Uses y_all (train+val) for computing mu/sigma
 """
 
 import os
 import sys
 import json
-import time
 import warnings
 from datetime import datetime
 
@@ -16,8 +18,8 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModel, AutoTokenizer, get_linear_schedule_with_warmup
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_squared_error, roc_auc_score
-from tqdm import tqdm
+from sklearn.metrics import mean_squared_error, mean_absolute_error, roc_auc_score
+from sklearn.model_selection import train_test_split
 
 warnings.filterwarnings('ignore')
 
@@ -52,19 +54,104 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
 
 
-def get_dataset(name):
-    """Load dataset from TDC"""
-    if name.lower() in ['tox21', 'herg']:
+def prepare_data(dataset_name, task_type, seed=42):
+    """
+    Prepare data with preprocessing matching optimized_gnn.py:
+    - TDC 2-way split (train/test) then manual 90/10 train/val
+    - clip_min=1e-3 for non-Caco2 datasets
+    - y_all (train+val) for computing mu/sigma
+    """
+    # Load dataset from TDC
+    if dataset_name.lower() in ['tox21', 'herg']:
         from tdc.single_pred import Tox
-        if name.lower() == 'tox21':
+        if dataset_name.lower() == 'tox21':
             data = Tox(name='tox21', label_name='NR-AR')
         else:
             data = Tox(name='herg')
     else:
         from tdc.single_pred import ADME
-        data = ADME(name=name)
+        data = ADME(name=dataset_name)
 
-    return data.get_split(method='scaffold', seed=SEED)
+    # Use 2-way split like optimized_gnn.py
+    split = data.get_split(method='scaffold', seed=seed, frac=[0.8, 0.0, 0.2])
+
+    train_df = split['train']
+    test_df = split['test']
+
+    # Manual 90/10 train/val split from training data (like optimized_gnn.py)
+    train_df, val_df = train_test_split(
+        train_df, test_size=0.1, random_state=seed
+    )
+
+    # Extract SMILES and labels
+    train_smiles = train_df['Drug'].tolist()
+    train_labels = train_df['Y'].astype(float).tolist()
+    val_smiles = val_df['Drug'].tolist()
+    val_labels = val_df['Y'].astype(float).tolist()
+    test_smiles = test_df['Drug'].tolist()
+    test_labels = test_df['Y'].astype(float).tolist()
+
+    # Filter NaN values
+    train_data = [(s, l) for s, l in zip(train_smiles, train_labels) if not np.isnan(l)]
+    val_data = [(s, l) for s, l in zip(val_smiles, val_labels) if not np.isnan(l)]
+    test_data = [(s, l) for s, l in zip(test_smiles, test_labels) if not np.isnan(l)]
+
+    train_smiles, train_labels = zip(*train_data) if train_data else ([], [])
+    val_smiles, val_labels = zip(*val_data) if val_data else ([], [])
+    test_smiles, test_labels = zip(*test_data) if test_data else ([], [])
+
+    train_labels = list(train_labels)
+    val_labels = list(val_labels)
+    test_labels = list(test_labels)
+
+    # Apply preprocessing for regression (matching optimized_gnn.py)
+    mu, sigma = 0.0, 1.0
+
+    if task_type == 'regression':
+        # Use y_all (train + val) for computing normalization stats (like optimized_gnn.py)
+        y_all = np.array(train_labels + val_labels)
+        is_caco2 = dataset_name.lower() == 'caco2_wang'
+
+        if is_caco2:
+            # Caco2_Wang: values already in log space (all negative)
+            y_log = y_all.astype(np.float32)
+            mu = float(y_log.mean())
+            sigma = float(y_log.std())
+            if sigma < 1e-6:
+                sigma = 1.0
+
+            # Normalize all labels
+            train_labels = [(y - mu) / sigma for y in train_labels]
+            val_labels = [(y - mu) / sigma for y in val_labels]
+            test_labels = [(y - mu) / sigma for y in test_labels]
+        else:
+            # Non-Caco2: apply log transform with clip_min=1e-3 (like optimized_gnn.py)
+            clip_min = 1e-3  # FIXED: was 1e-6, should be 1e-3
+
+            y_all_clipped = np.clip(y_all, clip_min, None)
+            y_log = np.log(y_all_clipped)
+            mu = float(y_log.mean())
+            sigma = float(y_log.std())
+            if sigma < 1e-6:
+                sigma = 1.0
+
+            # Normalize all labels
+            train_labels = [(np.log(max(clip_min, y)) - mu) / sigma for y in train_labels]
+            val_labels = [(np.log(max(clip_min, y)) - mu) / sigma for y in val_labels]
+            test_labels = [(np.log(max(clip_min, y)) - mu) / sigma for y in test_labels]
+
+        print(f"  Normalization: mu={mu:.4f}, sigma={sigma:.4f}")
+
+    return {
+        'train_smiles': train_smiles,
+        'train_labels': train_labels,
+        'val_smiles': val_smiles,
+        'val_labels': val_labels,
+        'test_smiles': test_smiles,
+        'test_labels': test_labels,
+        'mu': mu,
+        'sigma': sigma
+    }
 
 
 class ChemBERTaDataset(Dataset):
@@ -146,10 +233,7 @@ class ChemBERTaFineTuned(nn.Module):
         pooled = outputs.last_hidden_state[:, 0, :]
 
         logits = self.head(pooled)
-
-        if self.task_type == 'classification':
-            return torch.sigmoid(logits)
-        return logits
+        return logits  # Raw logits - sigmoid applied in loss or evaluation
 
 
 def train_epoch(model, loader, optimizer, criterion, device, scheduler=None):
@@ -180,8 +264,8 @@ def train_epoch(model, loader, optimizer, criterion, device, scheduler=None):
     return total_loss / n_samples
 
 
-def evaluate(model, loader, device, task_type):
-    """Evaluate model"""
+def evaluate(model, loader, device, task_type, mu=0.0, sigma=1.0, return_all_metrics=False):
+    """Evaluate model with proper inverse transform for regression"""
     model.eval()
     preds, labels = [], []
 
@@ -198,44 +282,55 @@ def evaluate(model, loader, device, task_type):
     labels = np.array(labels)
 
     if task_type == 'classification':
-        return roc_auc_score(labels, preds)
+        # Apply sigmoid to get probabilities (logits -> probabilities)
+        preds = 1 / (1 + np.exp(-preds))
+        auc = roc_auc_score(labels, preds)
+        if return_all_metrics:
+            return {'auc': auc}
+        return auc
     else:
-        return np.sqrt(mean_squared_error(labels, preds))
+        # Denormalize to log scale
+        preds_log = preds * sigma + mu
+        labels_log = labels * sigma + mu
+
+        # Log-scale metrics (before exp transform)
+        rmse_log = np.sqrt(mean_squared_error(labels_log, preds_log))
+        mae_log = mean_absolute_error(labels_log, preds_log)
+
+        # Original-scale metrics (after exp transform)
+        preds_orig = np.exp(preds_log)
+        labels_orig = np.exp(labels_log)
+        rmse_orig = np.sqrt(mean_squared_error(labels_orig, preds_orig))
+
+        if return_all_metrics:
+            return {
+                'rmse_orig': rmse_orig,
+                'rmse_log': rmse_log,
+                'mae_log': mae_log
+            }
+        # For validation/early stopping, use log-scale RMSE (more stable)
+        return rmse_log
 
 
 def run_finetune_for_dataset(dataset_name, task_type, tokenizer, device):
     """Run fine-tuning for a single dataset"""
 
-    # Load data
+    # Load and prepare data with correct preprocessing
     print(f"  Loading {dataset_name}...")
-    split = get_dataset(dataset_name)
+    data = prepare_data(dataset_name, task_type, seed=SEED)
 
-    # Prepare datasets
-    train_smiles = split['train']['Drug'].tolist()
-    train_labels = split['train']['Y'].astype(float).tolist()
-    valid_smiles = split['valid']['Drug'].tolist()
-    valid_labels = split['valid']['Y'].astype(float).tolist()
-    test_smiles = split['test']['Drug'].tolist()
-    test_labels = split['test']['Y'].astype(float).tolist()
+    mu = data['mu']
+    sigma = data['sigma']
 
-    # Filter NaN
-    train_data = [(s, l) for s, l in zip(train_smiles, train_labels) if not np.isnan(l)]
-    valid_data = [(s, l) for s, l in zip(valid_smiles, valid_labels) if not np.isnan(l)]
-    test_data = [(s, l) for s, l in zip(test_smiles, test_labels) if not np.isnan(l)]
-
-    train_smiles, train_labels = zip(*train_data)
-    valid_smiles, valid_labels = zip(*valid_data)
-    test_smiles, test_labels = zip(*test_data)
-
-    print(f"  Train: {len(train_smiles)}, Valid: {len(valid_smiles)}, Test: {len(test_smiles)}")
+    print(f"  Train: {len(data['train_smiles'])}, Val: {len(data['val_smiles'])}, Test: {len(data['test_smiles'])}")
 
     # Create datasets
-    train_dataset = ChemBERTaDataset(train_smiles, train_labels, tokenizer)
-    valid_dataset = ChemBERTaDataset(valid_smiles, valid_labels, tokenizer)
-    test_dataset = ChemBERTaDataset(test_smiles, test_labels, tokenizer)
+    train_dataset = ChemBERTaDataset(data['train_smiles'], data['train_labels'], tokenizer)
+    val_dataset = ChemBERTaDataset(data['val_smiles'], data['val_labels'], tokenizer)
+    test_dataset = ChemBERTaDataset(data['test_smiles'], data['test_labels'], tokenizer)
 
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=BATCH_SIZE * 2)
+    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE * 2)
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE * 2)
 
     # Create model
@@ -262,9 +357,17 @@ def run_finetune_for_dataset(dataset_name, task_type, tokenizer, device):
         num_training_steps=total_steps
     )
 
-    # Loss
+    # Loss - with class weighting for imbalanced classification
     if task_type == 'classification':
-        criterion = nn.BCELoss()
+        # Calculate pos_weight for imbalanced datasets (e.g., Tox21 has ~3.5% positive)
+        n_pos = sum(1 for y in data['train_labels'] if y > 0.5)
+        n_neg = len(data['train_labels']) - n_pos
+        if n_pos > 0:
+            pos_weight = torch.tensor([n_neg / n_pos], device=device)
+            print(f"  Class balance: {n_pos} pos / {n_neg} neg, pos_weight={pos_weight.item():.2f}")
+        else:
+            pos_weight = torch.tensor([1.0], device=device)
+        criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     else:
         criterion = nn.MSELoss()
 
@@ -277,7 +380,7 @@ def run_finetune_for_dataset(dataset_name, task_type, tokenizer, device):
     print("  Training...")
     for epoch in range(MAX_EPOCHS):
         train_loss = train_epoch(model, train_loader, optimizer, criterion, device, scheduler)
-        val_metric = evaluate(model, valid_loader, device, task_type)
+        val_metric = evaluate(model, val_loader, device, task_type, mu, sigma)
 
         history['train_loss'].append(train_loss)
         history['val_metric'].append(val_metric)
@@ -305,17 +408,40 @@ def run_finetune_for_dataset(dataset_name, task_type, tokenizer, device):
     if best_model_state:
         model.load_state_dict(best_model_state)
 
-    test_metric = evaluate(model, test_loader, device, task_type)
-    print(f"  Test {metric_name}: {test_metric:.4f}")
+    test_metrics = evaluate(model, test_loader, device, task_type, mu, sigma, return_all_metrics=True)
 
-    return {
+    if task_type == 'classification':
+        print(f"  Test AUC: {test_metrics['auc']:.4f}")
+    else:
+        print(f"  Test RMSE (orig): {test_metrics['rmse_orig']:.4f}")
+        print(f"  Test RMSE (log):  {test_metrics['rmse_log']:.4f}")
+        print(f"  Test MAE (log):   {test_metrics['mae_log']:.4f}")
+
+    result = {
         'dataset': dataset_name,
         'task_type': task_type,
         'best_val_metric': best_val,
-        'test_metric': test_metric,
         'epochs_trained': len(history['train_loss']),
-        'history': history
+        'history': history,
+        'preprocessing': {
+            'split_method': '2-way TDC + 90/10 manual',
+            'clip_min': 1e-3 if dataset_name.lower() != 'caco2_wang' else None,
+            'mu': mu,
+            'sigma': sigma
+        }
     }
+
+    # Add test metrics
+    if task_type == 'classification':
+        result['test_auc'] = test_metrics['auc']
+        result['test_metric'] = test_metrics['auc']
+    else:
+        result['test_rmse_orig'] = test_metrics['rmse_orig']
+        result['test_rmse_log'] = test_metrics['rmse_log']
+        result['test_mae_log'] = test_metrics['mae_log']
+        result['test_metric'] = test_metrics['rmse_log']
+
+    return result
 
 
 def run_chemberta_finetune_benchmark():
@@ -325,12 +451,16 @@ def run_chemberta_finetune_benchmark():
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"\n{'='*70}")
-    print("CHEMBERTA FINE-TUNING BENCHMARK")
+    print("CHEMBERTA FINE-TUNING BENCHMARK (FIXED PREPROCESSING)")
     print(f"{'='*70}")
     print(f"Device: {device}")
     print(f"Datasets: {len(DATASETS)}")
     print(f"Unfreeze layers: {UNFREEZE_LAYERS}")
     print(f"LR (encoder): {LR_ENCODER}, LR (head): {LR_HEAD}")
+    print(f"\nPreprocessing fixes applied:")
+    print(f"  - Data split: TDC 2-way + manual 90/10 (matching optimized_gnn.py)")
+    print(f"  - Clip min: 1e-3 for non-Caco2 (was 1e-6)")
+    print(f"  - Normalization: Using y_all (train+val) for mu/sigma")
     print(f"{'='*70}\n")
 
     set_seed(SEED)
@@ -350,8 +480,9 @@ def run_chemberta_finetune_benchmark():
             all_results.append(result)
 
             # Save individual result
-            with open(f"{OUTPUT_DIR}/chemberta_ft_{dataset_name}_results.json", 'w') as f:
-                json.dump({k: v for k, v in result.items() if k != 'history'}, f, indent=2)
+            result_to_save = {k: v for k, v in result.items() if k != 'history'}
+            with open(f"{OUTPUT_DIR}/chemberta_ft_{dataset_name}_results_fixed.json", 'w') as f:
+                json.dump(result_to_save, f, indent=2)
 
         except Exception as e:
             print(f"  ERROR: {e}")
@@ -361,28 +492,43 @@ def run_chemberta_finetune_benchmark():
         # Clear cache
         torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
-    # Save summary
-    summary_df = pd.DataFrame([{
-        'dataset': r['dataset'],
-        'model': 'ChemBERTa-FT',
-        'task_type': r['task_type'],
-        'test_metric': r['test_metric'],
-        'best_val_metric': r['best_val_metric'],
-        'epochs': r['epochs_trained']
-    } for r in all_results])
+    # Save summary with all metrics
+    summary_rows = []
+    for r in all_results:
+        row = {
+            'dataset': r['dataset'],
+            'model': 'ChemBERTa-FT',
+            'task_type': r['task_type'],
+            'best_val_metric': r['best_val_metric'],
+            'epochs': r['epochs_trained']
+        }
+        if r['task_type'] == 'classification':
+            row['test_auc'] = r['test_auc']
+            row['test_rmse_orig'] = None
+            row['test_rmse_log'] = None
+            row['test_mae_log'] = None
+        else:
+            row['test_auc'] = None
+            row['test_rmse_orig'] = r['test_rmse_orig']
+            row['test_rmse_log'] = r['test_rmse_log']
+            row['test_mae_log'] = r['test_mae_log']
+        summary_rows.append(row)
 
-    summary_df.to_csv(f"{OUTPUT_DIR}/chemberta_finetune_summary.csv", index=False)
+    summary_df = pd.DataFrame(summary_rows)
+    summary_df.to_csv(f"{OUTPUT_DIR}/chemberta_finetune_summary_fixed.csv", index=False)
 
     # Print summary
     print(f"\n{'='*70}")
-    print("CHEMBERTA FINE-TUNING SUMMARY")
+    print("CHEMBERTA FINE-TUNING SUMMARY (FIXED)")
     print(f"{'='*70}")
-    print(f"\n{'Dataset':<30} {'Task':<15} {'Test Metric':<15}")
-    print("-"*60)
+    print(f"\n{'Dataset':<25} {'Task':<12} {'RMSE_orig':<12} {'RMSE_log':<12} {'MAE_log':<12} {'AUC':<8}")
+    print("-"*85)
 
     for r in all_results:
-        metric_name = 'AUC' if r['task_type'] == 'classification' else 'RMSE'
-        print(f"{r['dataset']:<30} {r['task_type']:<15} {r['test_metric']:.4f} ({metric_name})")
+        if r['task_type'] == 'classification':
+            print(f"{r['dataset']:<25} {r['task_type']:<12} {'-':<12} {'-':<12} {'-':<12} {r['test_auc']:.4f}")
+        else:
+            print(f"{r['dataset']:<25} {r['task_type']:<12} {r['test_rmse_orig']:<12.4f} {r['test_rmse_log']:<12.4f} {r['test_mae_log']:<12.4f} {'-':<8}")
 
     print(f"\n{'='*70}")
     print(f"Results saved to: {OUTPUT_DIR}")

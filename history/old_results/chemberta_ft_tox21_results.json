@@ -1,0 +1,8 @@
+{
+  "dataset": "tox21",
+  "task_type": "classification",
+  "best_val_metric": 0.9022318783330042,
+  "epochs_trained": 12,
+  "test_auc": 0.7293267564868225,
+  "test_metric": 0.7293267564868225
+}

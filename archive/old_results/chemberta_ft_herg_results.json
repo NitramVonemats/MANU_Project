@@ -1,0 +1,14 @@
+{
+  "dataset": "herg",
+  "task_type": "classification",
+  "best_val_metric": 0.7845528455284553,
+  "epochs_trained": 17,
+  "preprocessing": {
+    "split_method": "2-way TDC + 90/10 manual",
+    "clip_min": 0.001,
+    "mu": 0.0,
+    "sigma": 1.0
+  },
+  "test_auc": 0.7769345238095238,
+  "test_metric": 0.7769345238095238
+}
