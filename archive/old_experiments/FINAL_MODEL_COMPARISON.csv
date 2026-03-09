@@ -1,0 +1,19 @@
+Dataset,Model,Task,Test_Metric,Val_Metric,Notes
+Caco2_Wang,GNN-Best,regression,RMSE_log=0.433,RMSE_log=0.40,Multi-seed mean ± 0.034
+Caco2_Wang,ChemBERTa-FT,regression,RMSE_log=0.500,RMSE_log=0.47,With class weighting
+Caco2_Wang,MolCLR-Pretrained,regression,RMSE=0.749,RMSE=0.81,Feature extraction only
+Half_Life_Obach,GNN-Best,regression,RMSE_log=1.163,RMSE_log=1.12,Multi-seed mean ± 0.054
+Half_Life_Obach,ChemBERTa-FT,regression,RMSE_log=1.066,RMSE_log=1.75,With class weighting
+Half_Life_Obach,MolCLR-Pretrained,regression,RMSE=21.71,RMSE=106.9,Feature extraction only
+Clearance_Hepatocyte_AZ,GNN-Best,regression,RMSE_log=1.331,RMSE_log=1.28,Multi-seed mean ± 0.055
+Clearance_Hepatocyte_AZ,ChemBERTa-FT,regression,RMSE_log=1.417,RMSE_log=1.21,With class weighting
+Clearance_Hepatocyte_AZ,MolCLR-Pretrained,regression,RMSE=48.92,RMSE=51.2,Feature extraction only
+Clearance_Microsome_AZ,GNN-Best,regression,RMSE_log=1.108,RMSE_log=1.07,Multi-seed mean ± 0.045
+Clearance_Microsome_AZ,ChemBERTa-FT,regression,RMSE_log=1.289,RMSE_log=1.11,With class weighting
+Clearance_Microsome_AZ,MolCLR-Pretrained,regression,RMSE=42.19,RMSE=41.0,Feature extraction only
+tox21,GNN-Best,classification,AUC=0.742,AUC=0.73-0.75,Multi-seed mean ± 0.011 **BEST**
+tox21,ChemBERTa-FT,classification,AUC=0.464,AUC=0.822,SEVERE OVERFITTING - scaffold shift
+tox21,MolCLR-Pretrained,classification,AUC=0.633,AUC=0.738,With oversampling fix
+herg,GNN-Best,classification,AUC=0.711,AUC=0.67-0.76,Multi-seed mean ± 0.050
+herg,ChemBERTa-FT,classification,AUC=0.729,AUC=0.762,With class weighting
+herg,MolCLR-Pretrained,classification,AUC=0.434,AUC=0.313,Oversampling hurt balanced data
