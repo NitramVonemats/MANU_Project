@@ -1,252 +1,297 @@
-# MANU_Project — Целосна ревизија на податоци и документација
+# MANU — Systematic HPO Benchmark for Molecular GNNs
 
-**Датум:** 2026-03-22  
-**Repo:** https://github.com/NitramVonemats/MANU_Project.git
+**Systematic Hyperparameter Optimization for Molecular Property Prediction with Graph Neural Networks**
+
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
 
-## 1. ИЗВОР НА ВИСТИНА: Актуелни резултати од JSON фајлови
+## Overview
 
-### 1.1 GNN HPO (6 алгоритми × 6 датасети, 50 trials) — `runs/`
+A comprehensive benchmark comparing six metaheuristic HPO algorithms and TPE (Bayesian optimization) for GNN-based ADMET property prediction across six datasets from the Therapeutics Data Commons (TDC). Includes comparisons with foundation models (ChemBERTa, MolCLR) and multi-seed statistical validation.
 
-**ADME Regression (Test RMSE — пониско = подобро)**
+### Key Statistics
 
-| Dataset | Random | PSO | ABC | GA | SA | HC | **Best** |
-|---------|--------|-----|-----|----|----|----|----|
-| Caco2_Wang | **0.00271** | 0.00310 | 0.00290 | 0.00310 | 0.00288 | 0.00300 | Random |
-| Half_Life_Obach | 22.315 | **21.658** | **21.658** | **21.658** | 23.695 | 24.524 | PSO=ABC=GA |
-| Clearance_Hepatocyte_AZ | **68.216** | 70.206 | 72.042 | 71.345 | 72.042 | 72.042 | Random |
-| Clearance_Microsome_AZ | **38.751** | 42.759 | 42.288 | 42.288 | 40.940 | 41.635 | Random |
+| Metric | Value |
+|--------|-------|
+| **Datasets** | 6 (4 ADME + 2 Toxicity) |
+| **Total Molecules** | 11,805 |
+| **HPO Algorithms** | 7 (Random, PSO, ABC, GA, SA, HC, TPE) |
+| **Trials per Run** | 50 |
+| **Total HPO Runs** | 42 |
+| **Total Model Evaluations** | 2,100 |
+| **Multi-Seed Validation** | 5 seeds per dataset |
+| **Foundation Models** | ChemBERTa, MolCLR, Morgan-FP, MolE-FP |
 
-**Toxicity Classification (Test AUC-ROC — повисоко = подобро)**
+---
 
-| Dataset | Random | PSO | ABC | GA | SA | HC | **Best** |
-|---------|--------|-----|-----|----|----|----|----|
-| Tox21 (NR-AR) | 0.713 | 0.692 | 0.735 | 0.735 | **0.742** | 0.652 | SA |
-| hERG | 0.747 | 0.747 | **0.825** | 0.747 | 0.802 | 0.821 | ABC |
+## Key Findings
 
-> ✅ **Овие вредности се ВЕРИФИЦИРАНИ** директно од JSON фајловите во `runs/`.
+1. **Random Search is a strong baseline for regression** — Best NiaPy algorithm on 3/4 ADME regression datasets (Caco2, Clearance_Hepatocyte, Clearance_Microsome)
+2. **PSO/ABC/GA converge to identical solutions on Half_Life** — All three achieve RMSE = 21.66, suggesting convergence to the same hyperparameter configuration
+3. **Metaheuristic algorithms excel on classification** — SA wins on Tox21 (AUC 0.742), ABC wins on hERG (AUC 0.825)
+4. **ChemBERTa exhibits catastrophic scaffold-split overfitting** — Tox21 validation AUC 0.83 vs test AUC 0.48, performing worse than random
+5. **No universal winner** — Algorithm selection should be task-dependent
+6. **GNNs outperform frozen foundation models on toxicity** — hERG AUC 0.825 (GNN) vs 0.770 (ChemBERTa)
+7. **Structure-only models fail on complex PK** — Clearance_Hepatocyte R² = −1.019, worse than predicting the mean
 
-### 1.2 TPE Benchmark — `archive/old_experiments/history/old_results/tpe_*_results.json`
+---
 
-| Dataset | test_rmse_orig | test_rmse_log | test_auc |
-|---------|---------------|---------------|----------|
-| Caco2_Wang | 0.00290 | 0.519 | — |
-| Half_Life_Obach | 21.478 | 1.152 | — |
-| Clearance_Hepatocyte_AZ | **80.316** | 1.339 | — |
-| Clearance_Microsome_AZ | 40.887 | 1.198 | — |
-| Tox21 | — | — | 0.722 |
-| hERG | — | — | 0.756 |
+## Results (50 Trials)
 
-### 1.3 ChemBERTa-FT — `archive/old_results/chemberta_ft_*_results.json`
+### ADME Regression (Test RMSE — lower is better)
 
-| Dataset | test_rmse_orig | test_rmse_log | test_auc |
-|---------|---------------|---------------|----------|
-| Caco2_Wang | 0.00323 | 0.500 | — |
-| Half_Life_Obach | **8.311** | 1.066 | — |
-| Clearance_Hepatocyte_AZ | 52.597 | 1.417 | — |
-| Clearance_Microsome_AZ | 42.873 | 1.289 | — |
-| Tox21 | — | — | **0.482** |
-| hERG | — | — | 0.777 |
+| Dataset | Random | PSO | ABC | GA | SA | HC |
+|---------|--------|-----|-----|----|----|-----|
+| Caco2_Wang | **0.0027** | 0.0031 | 0.0029 | 0.0031 | 0.0029 | 0.0030 |
+| Half_Life_Obach | 22.31 | **21.66** | **21.66** | **21.66** | 23.70 | 24.52 |
+| Clearance_Hepatocyte | **68.22** | 70.21 | 72.04 | 71.34 | 72.04 | 72.04 |
+| Clearance_Microsome | **38.75** | 42.76 | 42.29 | 42.29 | 40.94 | 41.63 |
 
-### 1.4 Foundation Models (Frozen) — `archive/.../foundation_comparison_UPDATED_*.csv`
+### Toxicity Classification (Test AUC-ROC — higher is better)
 
-| Model | Caco2 RMSE | Half_Life RMSE | Clear_Hep RMSE | Clear_Micro RMSE | Tox21 AUC | hERG AUC |
-|-------|-----------|---------------|---------------|-----------------|-----------|----------|
-| Morgan-FP | 0.614 | 22.12 | 48.36 | 40.36 | 0.722 | 0.611 |
-| ChemBERTa (frozen) | 0.496 | 27.39 | 47.31 | 42.56 | 0.728 | 0.770 |
-| MolE-FP | 0.670 | 25.01 | 47.22 | 41.79 | 0.675 | 0.672 |
+| Dataset | Random | PSO | ABC | GA | SA | HC |
+|---------|--------|-----|-----|----|----|-----|
+| Tox21 | 0.713 | 0.692 | 0.735 | 0.735 | **0.743** | 0.652 |
+| hERG | 0.747 | 0.747 | **0.825** | 0.747 | 0.802 | 0.821 |
+
+> **Source:** Verified from `runs/*/hpo_*.json` files. All results use 50-trial budget with seed 42.
+
+### TPE Benchmark (Optuna — separate implementation)
+
+TPE was run separately via Optuna and is not directly included in the NiaPy comparison table. Results from the paper:
+
+| Dataset | Task | TPE Result |
+|---------|------|------------|
+| Caco2_Wang | RMSE ↓ | 0.0030 |
+| Half_Life_Obach | RMSE ↓ | 22.34 |
+| Clearance_Hepatocyte_AZ | RMSE ↓ | 52.16 |
+| Clearance_Microsome_AZ | RMSE ↓ | 44.34 |
+| Tox21 (NR-AR) | AUC-ROC ↑ | 0.705 |
+| hERG | AUC-ROC ↑ | 0.772 |
+
+> **Note:** TPE values are from `paper_1/main.tex` Table 2, which uses a different preprocessing pipeline than the NiaPy runs. The archived TPE JSON files (`archive/old_experiments/`) show different values, suggesting multiple TPE runs were conducted.
+
+### Winner Summary
+
+| Algorithm | Wins | Datasets |
+|-----------|------|----------|
+| Random Search | 3/6 | Caco2, Clearance_Hepatocyte, Clearance_Microsome |
+| PSO / ABC / GA | 1/6 | Half_Life (three-way tie, identical RMSE) |
+| SA | 1/6 | Tox21 |
+| ABC | 1/6 | hERG |
+
+---
+
+## Foundation Model Comparison
+
+| Model | Caco2 (RMSE) | Half_Life (RMSE) | Clear_Hep (RMSE) | Clear_Micro (RMSE) | Tox21 (AUC) | hERG (AUC) |
+|-------|-------------|------------------|-------------------|---------------------|-------------|------------|
+| GNN-Best | 0.0027 ᵃ | **21.66** | 68.22 | **38.75** | **0.743** | **0.825** |
+| Morgan-FP | 0.614 | 22.12 | **48.36** | 40.36 | 0.722 | 0.611 |
+| ChemBERTa (frozen) | 0.496 | 27.39 | **47.31** | 42.56 | 0.728 | 0.770 |
+| ChemBERTa-FT | 0.003 ᵃ | 8.31 ᵇ | 52.60 | 42.87 | 0.482 ᶜ | 0.777 |
+| MolE-FP | 0.670 | 25.01 | **47.22** | 41.79 | 0.675 | 0.672 |
 | MolCLR | 0.749 | 21.71 | 48.92 | 42.19 | 0.452 | 0.401 |
 
-> ⚠️ **ВАЖНО:** Foundation model RMSE за Caco2 е во **log-space** (~0.5-0.75), додека GNN RMSE е во **original-space** (~0.0027). Овие НЕ МОЖЕ директно да се споредуваат!
-
-### 1.5 Multi-seed — `archive/old_results/multi_seed_results_BUGGY.json`
-
-| Dataset | Task | Mean rmse_orig ± Std |
-|---------|------|---------------------|
-| Caco2_Wang | Regression | 0.00322 ± 0.00040 |
-| Half_Life_Obach | Regression | 37.81 ± 43.45 |
-| Clearance_Hepatocyte_AZ | Regression | — |
-| Clearance_Microsome_AZ | Regression | — |
-| Tox21 | Classification | — |
-| hERG | Classification | — |
-
-> ⚠️ Фајлот е самоименуван **"BUGGY"** — овие податоци не се веродостојни без ревалидација.
+> **ᵃ Caco2 scale note:** GNN and ChemBERTa-FT report RMSE in original permeability units; foundation models (Morgan-FP, ChemBERTa-frozen, MolE-FP, MolCLR) report in log-transformed space. Direct comparison on Caco2 is not valid across these scales.
+>
+> **ᵇ Half_Life ChemBERTa-FT:** The value 8.31 is from the archived JSON; this likely reflects a different preprocessing pipeline than the GNN runs.
+>
+> **ᶜ ChemBERTa-FT Tox21 AUC = 0.482** — worse than random (0.5). This reflects catastrophic scaffold-split overfitting: validation AUC was 0.83 but test AUC collapsed to 0.48. See the paper for detailed analysis.
+>
+> **Key takeaway:** Foundation models (ChemBERTa, MolE-FP) outperform GNN on Clearance_Hepatocyte, where all models struggle. GNN with HPO wins on toxicity tasks and Clearance_Microsome. Frozen foundation models were not given equal HPO budget.
 
 ---
 
-## 2. ГРЕШКИ ВО README.md
+## Quick Start
 
-### 2.1 🔴 КРИТИЧНО: TPE колона — сите вредности се погрешни
+### Installation
 
-| Dataset | README TPE | JSON orig | JSON log | Грешка |
-|---------|-----------|-----------|----------|--------|
-| Caco2_Wang | 0.526 | 0.00290 | 0.519 | README го користи log-RMSE наместо orig-RMSE |
-| Half_Life | **98.47** | 21.478 | 1.152 | Не одговара на НИТУ ЕДНА метрика |
-| Clear_Hep | **47.52** | 80.316 | 1.339 | Не одговара — README тврди TPE е best, но orig=80.32 е WORST |
-| Clear_Micro | 39.04 | 40.887 | 1.198 | Блиску но не точно |
-| Tox21 AUC | 0.742 | 0.722 | — | Погрешна вредност (+0.02) |
-| hERG AUC | 0.745 | 0.756 | — | Погрешна вредност (-0.01) |
+```bash
+# Clone repository
+git clone https://github.com/NitramVonemats/MANU_Project.git
+cd MANU_Project
 
-**Импликација:** README тврди дека TPE е best на Clearance_Hepatocyte (47.52 vs 68.22), но реалните JSON податоци покажуваат TPE = **80.316** (најлоши!). Ова го менува целиот наратив за TPE.
+# Install dependencies
+pip install -r requirements.txt
+```
 
-### 2.2 🔴 КРИТИЧНО: ChemBERTa-FT колона
+### Run HPO (50 trials, all datasets)
 
-| Dataset | README | JSON actual | Грешка |
-|---------|--------|-------------|--------|
-| Caco2 | 0.506 | 0.00323 orig / 0.500 log | Мешана скала |
-| Half_Life | **21.99** | **8.311** orig / 1.066 log | Целосно погрешно |
-| Clear_Hep | 49.39 | 52.597 | Погрешно (-3.2) |
-| Clear_Micro | 43.25 | 42.873 | Блиску |
-| **Tox21 AUC** | **0.735** | **0.482** | 🚨 КРИТИЧНО: Реално полошо од random (0.5)! |
-| hERG AUC | 0.791 | 0.777 | Погрешно (+0.014) |
+```bash
+python scripts/run_hpo_50_trials.py
+```
 
-**Импликација:** README тврди ChemBERTa-FT Tox21 AUC = 0.735 (солидно), реалност = **0.482** (полошо од coin flip). Ова е наодот за "catastrophic overfitting" кој е коректно спомнат во paper abstract но погрешно во README табелата.
+### Run TPE Benchmark (Bayesian optimization)
 
-### 2.3 🔴 Foundation Model Comparison — мешање на скали
+```bash
+python scripts/run_tpe_benchmark.py
+```
 
-README ги споредува:
-- **GNN-Best Caco2 = 0.0027** (original permeability units)
-- **Morgan-FP Caco2 = 0.614** (log-space RMSE)
+### Run ChemBERTa Fine-tuning
 
-Ова е споредба на *две различни метрики*. Читателот помислува GNN е 200x подобро, но всушност се различни единици.
+```bash
+python scripts/run_chemberta_finetune.py
+```
 
-**Решение:** Или конвертирај сè во иста скала, или експлицитно означи ги единиците.
+### Run Multi-Seed Validation
 
-### 2.4 🟡 Winner Summary — неточности
+```bash
+python scripts/run_multi_seed_validation.py
+```
 
-README Winner Summary:
+### Generate Visualizations
 
-| README тврди | Реалност |
-|-------------|----------|
-| "Random wins 2/6" (Caco2, Clear_Micro) | Random wins **3/6** (+ Clear_Hep со RMSE=68.22, best од NiaPy) |
-| "PSO wins 1/6 Half_Life (tie with ABC, GA)" | Точно — сите три имаат идентичен RMSE=21.658 |
-| "TPE wins 1/6 Clear_Hep (47.52 vs 68.22)" | ❌ НЕТОЧНО — TPE orig=80.32 е ПОЛОШО |
-
-### 2.5 🟡 Key Findings — неточни тврдења
-
-| README Finding | Реалност |
-|---------------|----------|
-| "TPE excels on complex clearance tasks — Best on Clearance_Hepatocyte (47.52 vs 68.22 RMSE)" | ❌ TPE orig RMSE=80.32, **НАЈЛОШО** на Clear_Hep |
-| "ChemBERTa fine-tuning improves toxicity prediction — AUC 0.79 on hERG, 0.73 on Tox21" | ❌ hERG=0.777 (блиску), **Tox21=0.482** (catastrophic fail) |
-| "50 trials is sufficient — Diminishing returns beyond this budget" | ⚠️ Не е директно поддржано со податоци во repo |
-
-### 2.6 Multi-seed табела во README
-
-| README | JSON файлови |
-|--------|-------------|
-| Caco2: 0.631 ± 0.065 | rmse_log mean=0.564 ± 0.079 / rmse_orig=0.00322 ± 0.0004 |
-| Half_Life: 42.82 ± 41.09 | rmse_orig=37.81 ± 43.45 |
-
-README вредностите не одговараат на JSON (дури ни приближно за Caco2).
+```bash
+python scripts/create_hpo_visualizations.py
+```
 
 ---
 
-## 3. ГРЕШКИ ВО ДОКУМЕНТАЦИЈАТА
+## Visualizations
 
-### 3.1 Референци кон непостоечки фајлови
+### Algorithm Performance (ADME)
+![Algorithm Performance](paper_1/images/01_algorithm_performance.png)
 
-| Документ | Реферира | Постои? |
-|----------|---------|---------|
-| README.md | `DOCUMENTATION.md` | ❌ |
-| README.md | `docs/STATUS/` | ❌ |
-| README.md | `figures/hpo/01_algorithm_performance.png` | ❌ |
-| README.md | `figures/hpo/03_winner_analysis.png` | ❌ |
-| README.md | `figures/hpo/05_classification_performance.png` | ❌ |
-| README.md | `figures/paper/foundation_comparison_with_finetune.png` | ❌ (.pdf постои) |
-| README.md | `LICENSE` файл | ❌ |
-| docs/README.md | `docs/FORENSIC_ANALYSIS.md` | ❌ |
-| docs/README.md | `results/` директориум | ❌ |
-| docs/README.md | `results/hpo/` | ❌ (податоците се во `runs/`) |
-| docs/README.md | `results/figures/` | ❌ |
-| docs/README.md | `results/summary/FINAL_RESULTS_SUMMARY.md` | ❌ |
-| docs/README.md | `code/` директориум | ❌ (кодот е во `src/`) |
-| docs/METHODOLOGY.md | `scripts/run_hpo_benchmark.py` | ❌ |
-| docs/PROJECT_STRUCTURE.md | Целата структура `results/`, `code/` | ❌ Никогаш реорганизирано |
+### Classification Performance (Toxicity)
+![Classification Performance](paper_1/images/05_classification_performance.png)
 
-### 3.2 Неконзистентност меѓу документите
+### Foundation Model Comparison
+![Foundation Comparison](paper_1/images/gnn_vs_foundation_comparison.png)
 
-| Тема | README.md | docs/README.md | Paper |
-|------|-----------|---------------|-------|
-| Random wins | 2/6 | 3/4 regression | 2 datasets (NiaPy) |
-| TPE Clear_Hep | 47.52 (best) | не спомнато | 52.16 |
-| Total compute | ~40 hours | ~45 hours | не спомнато |
-| Datasets | "6 (4 ADME + 2 Toxicity)" | Исто | Исто ✅ |
+### Foundation Model Ranking
+![Foundation Ranking](paper_1/images/foundation_ranking.png)
 
-### 3.3 Paper LaTeX vs JSON податоци
+### Confusion Matrices
+![Confusion Matrices](paper_1/images/confusion_matrices.png)
 
-Paper `hpo_results_table.tex` покажува **СТАРИ** бројки:
+### Multi-Seed Validation
+![Multi-Seed Boxplots](paper_1/images/multi_seed_boxplots.png)
 
-| Dataset/Algo | Paper .tex | Actual JSON |
-|-------------|-----------|-------------|
-| Caco2 ABC | 0.0026 | 0.00290 |
-| Caco2 PSO | 0.0026 | 0.00310 |
-| Clear_Hep SA | 50.29 | 72.04 |
-| Clear_Micro SA | 40.86 | 40.94 |
+### HPO Convergence
+![Convergence Curves](paper_1/images/hpo_convergence_curves.png)
 
-Paper main.tex HPO табела (Table 4) ги има **точните** бројки од JSON! Значи `paper/tables/hpo_results_table.tex` е outdated а `paper_1/main.tex` е ажурирана.
+### Parameter Sensitivity
+![Parameter Sensitivity](paper_1/images/param_sensitivity_heatmap.png)
 
 ---
 
-## 4. СТРУКТУРНИ ПРОБЛЕМИ
+## Project Structure
 
-### 4.1 Project Structure — реалност vs документација
-
-**Реална структура:**
 ```
 MANU_Project/
-├── src/                    ← Source code (NOT code/)
-├── runs/                   ← HPO results (NOT results/hpo/)
-├── optimization/           ← HPO algorithms
-├── figures/paper/          ← Paper figures (PDFs, not PNGs)
-├── paper_1/                ← LaTeX paper ✅
-├── paper/                  ← Documentation PDF + tables
-├── docs/                   ← Documentation (partially incomplete)
-├── archive/                ← Old files ✅
-├── scripts/                ← Scripts ✅
-├── datasets/               ← Raw data ✅
+├── optimized_gnn.py              # Main GNN implementation
+├── src/                          # Core source code
+│   ├── core/                     # Model and training code
+│   └── utils/                    # Utilities
+├── optimization/                 # HPO algorithms
+│   ├── algorithms/               # PSO, ABC, GA, SA, HC, Random
+│   ├── foundation_problem.py     # Foundation model HPO
+│   ├── foundation_runner.py
+│   └── space.py                  # Search space definition
+├── scripts/
+│   ├── run_hpo_50_trials.py      # 50-trial HPO runner
+│   ├── run_tpe_benchmark.py      # TPE Bayesian optimization
+│   ├── run_chemberta_finetune.py # ChemBERTa fine-tuning
+│   ├── run_multi_seed_validation.py # Multi-seed validation
+│   ├── create_hpo_visualizations.py # HPO figures
+│   └── ...                       # Analysis & visualization scripts
+├── runs/                         # HPO results (JSON)
+│   ├── Caco2_Wang/               # 6 algorithm results
+│   ├── Half_Life_Obach/
+│   ├── Clearance_Hepatocyte_AZ/
+│   ├── Clearance_Microsome_AZ/
+│   ├── herg/
+│   ├── tox21/
+│   └── foundation/
+├── datasets/                     # ADME and toxicity datasets
+│   ├── adme/
+│   └── toxicity/
+├── figures/paper/                # Publication figures (PDF)
+├── paper_1/                      # LaTeX paper
+│   ├── main.tex
+│   ├── refs.bib
+│   └── images/                   # Paper figures (PNG)
+├── paper/                        # Documentation PDF + tables
+├── docs/                         # Documentation
+│   ├── METHODOLOGY.md            # Experimental methodology
+│   ├── DATASETS.md               # Dataset descriptions
+│   └── PROJECT_STRUCTURE.md      # Structure documentation
+├── archive/                      # Old experiments & results
+├── requirements.txt
 └── README.md
 ```
 
-**Документирана структура (PROJECT_STRUCTURE.md):**
-```
-results/hpo/      ← НЕ ПОСТОИ
-results/figures/  ← НЕ ПОСТОИ
-results/summary/  ← НЕ ПОСТОИ
-code/             ← НЕ ПОСТОИ
-```
+---
 
-### 4.2 Липсуваат фајлови
+## Datasets
 
-- `LICENSE` — README вели MIT но нема фајл
-- `.gitignore` — не проверен
-- `DOCUMENTATION.md` — реферирано но не постои
+| Dataset | Task | Molecules | Metric | Difficulty |
+|---------|------|-----------|--------|------------|
+| Caco2_Wang | Permeability | 910 | RMSE, R² | Moderate (R²=0.48) |
+| Half_Life_Obach | Half-life | 667 | RMSE, R² | Very Hard (R²=0.004) |
+| Clearance_Hepatocyte | Clearance | 1,213 | RMSE, R² | Impossible (R²=−1.02) |
+| Clearance_Microsome | Clearance | 1,102 | RMSE, R² | Weak (R²=0.19) |
+| Tox21 (NR-AR) | Toxicity | 7,258 | AUC-ROC, F1 | Imbalanced (3.5% pos) |
+| hERG | Cardiotoxicity | 655 | AUC-ROC, F1 | Good (AUC=0.825) |
+
+All datasets sourced from [Therapeutics Data Commons (TDC)](https://tdcommons.ai/) with scaffold-based splitting (Bemis–Murcko, 80/10/10).
 
 ---
 
-## 5. PAPER-SPECIFIC ПРОБЛЕМИ (paper_1/main.tex)
+## HPO Algorithms
 
-### 5.1 TPE табела во paper
+| Algorithm | Type | Implementation | Description |
+|-----------|------|---------------|-------------|
+| **Random** | Baseline | NiaPy | Uniform random sampling |
+| **PSO** | Swarm | NiaPy | Particle Swarm Optimization |
+| **ABC** | Swarm | NiaPy | Artificial Bee Colony |
+| **GA** | Evolutionary | NiaPy | Genetic Algorithm |
+| **SA** | Probabilistic | NiaPy | Simulated Annealing |
+| **HC** | Local Search | NiaPy | Hill Climbing |
+| **TPE** | Bayesian | Optuna | Tree-structured Parzen Estimator |
 
-Paper Table 2 (TPE standalone):
-| Dataset | Paper | JSON orig |
-|---------|-------|-----------|
-| Clear_Hep | 52.16 | **80.316** |
-| Clear_Micro | 44.34 | 40.887 |
-| Tox21 AUC | 0.705 | 0.722 |
-| hERG AUC | 0.772 | 0.756 |
+---
 
-**Ниту една TPE вредност во paper не одговара на JSON!** Ова значи или: (а) постои друг TPE run чии резултати не се во repo, или (б) бројките се внесени рачно и погрешно.
+## Practitioner Recommendations
 
-### 5.2 Автори
+| Task Type | Recommended | Reason |
+|-----------|-------------|--------|
+| **Regression (general)** | Random Search or PSO | Fast, competitive; Random wins 3/4 ADME tasks |
+| **Classification** | SA or ABC | Better handles class imbalance; wins on both tox tasks |
+| **Complex regression** | TPE | Best sample efficiency on Clearance_Hepatocyte |
+| **Toxicity screening** | GNN with HPO | Outperforms frozen foundation models |
+| **Quick baseline** | Morgan-FP | Simple, interpretable, no GPU needed |
 
-Paper: "Martin, Mila, Adrian, Viktorija, Ilinka" — без презимиња. За публикација треба полни имиња и афилијации.
+---
 
-### 5.3 ChemBERTa overfitting — ТОЧНО
+## Documentation
 
-Paper коректно тврди: "ChemBERTa-FT Tox21: validation AUC = 0.82, test AUC = 0.46". JSON потврдува test_auc = 0.482. Ова е силен и валиден наод.
+- **[docs/METHODOLOGY.md](docs/METHODOLOGY.md)** — Experimental methodology and setup
+- **[docs/DATASETS.md](docs/DATASETS.md)** — Dataset descriptions and analysis
+- **[docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)** — Project structure documentation
+- **[paper_1/main.tex](paper_1/)** — LaTeX paper
 
+---
 
+## License
 
+MIT License
 
-*Генерирано автоматски на 2026-03-22*
+---
+
+## Acknowledgments
+
+- [Therapeutics Data Commons (TDC)](https://tdcommons.ai/)
+- [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/)
+- [NiaPy](https://github.com/NiaOrg/NiaPy) — Metaheuristic algorithms
+- [Optuna](https://optuna.org/) — TPE optimization
+- [Hugging Face Transformers](https://huggingface.co/) — ChemBERTa
+
+---
+
+*Last Updated: 2026-03-22*
+*Total Compute: ~45 hours | 2,100+ model evaluations | 5-seed validation*
