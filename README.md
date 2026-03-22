@@ -1,7 +1,6 @@
 # MANU_Project — Целосна ревизија на податоци и документација
 
 **Датум:** 2026-03-22  
-**Ревизор:** Claude (по барање на Martin)  
 **Repo:** https://github.com/NitramVonemats/MANU_Project.git
 
 ---
