@@ -2,196 +2,347 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{hyperref}
-\usepackage[backend=biber, style=numeric, sorting=none]{biblatex}
-\usepackage{amsmath}
+\usepackage{cite}
 \usepackage{multirow}
-\usepackage{siunitx}
-\usepackage[margin=1in]{geometry}
+%\usepackage[backend=biber, style=numeric, sorting=none]{biblatex}
 
 \graphicspath{ {./images/} }
 
-\addbibresource{refs.bib}
 
-\title{Systematic Hyperparameter Optimization and Benchmarking of Graph Neural Networks for ADMET Prediction}
+\title{Framework for Benchmarking and Optimization of Small Molecule Foundation Models for ADME}
 \author{Martin, Mila, Adrian, Viktorija, Ilinka}
-\date{\today}
+\date{October 2025}
+
+%\addbibresource{refs.bib}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-This paper presents a comprehensive benchmarking framework for evaluating Graph Neural Networks (GNNs) on molecular property prediction, focusing on hyperparameter optimization (HPO) across six Absorption, Distribution, Metabolism, Excretion, and Toxicity (ADMET) datasets from the Therapeutics Data Commons (TDC). We systematically evaluated seven HPO algorithms---Random Search, Particle Swarm Optimization (PSO), Simulated Annealing (SA), Genetic Algorithm (GA), Artificial Bee Colony (ABC), Hill Climbing (HC), and Tree-structured Parzen Estimator (TPE)---conducting over 2,100 training runs. Our findings reveal that no single optimizer is universally superior; the optimal choice is task-dependent. Random Search proved to be a formidable baseline, outperforming more complex methods on several regression tasks. For classification, metaheuristics such as SA and ABC achieved the strongest performance. The study highlights the variable difficulty of ADMET tasks: GNNs achieved strong performance on toxicity prediction (hERG AUC-ROC: 0.825), but struggled with complex pharmacokinetics such as hepatocyte clearance, where the model performed worse than a mean baseline ($R^2 = -1.019$). We also demonstrate that scaffold-based splitting poses a critical challenge for foundation models, exposing severe overfitting in ChemBERTa (validation AUC of 0.82 vs.\ test AUC of 0.46 on Tox21). The paper provides a detailed overview of the benchmarking methodology, an in-depth analysis of the results, and practical recommendations for researchers in the field.
+Accurate prediction of molecular ADMET (Absorption, Distribution, Metabolism, Excretion, and Toxicity) properties is essential for early-stage drug discovery, yet reported model performance depends heavily on evaluation protocol and hyperparameter tuning. We present a reproducible benchmarking framework that systematically evaluates seven hyperparameter optimization (HPO) strategies, like Particle Swarm Optimization, Simulated Annealing, Genetic Algorithm, Artificial Bee Colony, Hill Climbing, Random Search, and Tree-structured Parzen Estimator for Graph Neural Networks across six Therapeutics Data Commons (TDC) ADMET tasks under scaffold-split evaluation. Over 2{,}100 model training runs (50 trials $\times$ 7 algorithms $\times$ 6 datasets) reveal that no single optimizer universally dominates: Random Search wins on three of four regression tasks, while metaheuristics (SA, ABC) excel on toxicity classification. We further compare optimized GNNs against foundation model baselines (ChemBERTa, MolCLR, Morgan fingerprints) and find that task-specific GNNs with systematic HPO can match or exceed frozen pretrained encoders. Multi-seed validation and statistical significance testing confirm result robustness. Our findings demonstrate that scaffold-split evaluation substantially alters optimizer rankings compared to random-split settings, and we provide practical recommendations for HPO strategy selection under limited compute budgets.
 \end{abstract}
-
 
 \section{Introduction}
 
-Machine learning methods have become increasingly valuable in drug discovery, offering the potential to accelerate the identification and optimization of therapeutic candidates. Deep learning models, in particular, have been applied to a wide range of molecular property prediction tasks, leveraging architectures specialized for different data modalities including text, images, and graphs. Among these, Graph Neural Networks (GNNs) have emerged as a natural fit for molecular data, as they operate directly on molecular graph representations where atoms serve as nodes and bonds as edges.
+AI and machine learning continue to find practical applications in advancing drug discovery, with many models emerging in the literature. The bulk of this research is concerned with predicting how different molecules impact the human body at large, including but not limited to, identifying disease targets, interactions between molecules, and pharmacological properties of molecules such as absorption, distribution, metabolism, excretion and toxicity (ADMET), which require lots of experimentation to measure in the lab. Thus by building sufficiently precise models for these tasks one can greatly hasten the speed at which new medicines could be researched \cite{zhang2025admet}.
 
-Despite rapid progress in molecular machine learning, reported performance often depends heavily on the evaluation protocol. In particular, scaffold-based splitting (using Bemis--Murcko scaffolds~\cite{moleculenet}) creates a more realistic generalization setting by separating compounds with different core structures, but it also induces a strong distribution shift. As a result, models that perform well under random splits can degrade substantially under scaffold splits, especially for chemically diverse ADMET endpoints. This motivates systematic, reproducible benchmarking under scaffold-split evaluation to avoid overly optimistic conclusions.
+To establish a comprehensive evaluation, we compare widely adopted baseline models against specialized Graph Neural Networks (GNNs). Classical algorithms like Random Forest and XGBoost utilizing pre-computed chemical descriptors, such as Morgan fingerprints, have traditionally set the standard for computational ADMET profiling due to their efficiency and robustness~\cite{wu2018moleculenet}. However, these fixed vector representations often fail to capture complex topological motifs present in three-dimensional molecular structures. GNNs address this limitation by relying on a message-passing paradigm that naturally aligns with the graph-like structure of molecules, seamlessly treating atoms as nodes and chemical bonds as edges~\cite{gilmer2017neural}. By operating directly on the raw molecular graph, GNNs learn task-specific, end-to-end representations that effectively capture rich local and long-range structural interactions. Recent literature highlights that advanced GNN architectures, such as directed message passing neural networks and attention-based spatial graph models, consistently demonstrate superior predictive performance across diverse ADMET benchmarks relative to traditional descriptor-centric baselines~\cite{yang2019analyzing, xiong2020pushing}. Consequently, evaluating these specialized GNNs provides critical insight into their capacity to model the subtle structure-activity relationships inherently required for accurate pharmacokinetic and toxicity predictions.
 
-To conduct such a benchmark, one requires well-curated datasets suitable for both training and cross-model comparison. The Therapeutics Data Commons (TDC)~\cite{tdc} provides a comprehensive collection of Absorption, Distribution, Metabolism, Excretion, and Toxicity (ADMET) datasets covering how molecules are absorbed, distributed, metabolized, and excreted by the body, as well as their toxicity across various biological assays.
+However, despite rapid progress in molecular machine learning, reported performance often depends heavily on evaluation protocol. In particular, scaffold-based splitting (Bemis–Murcko scaffolds \cite{doi:10.1021/jm9602928}) creates a more realistic generalization setting by separating compounds with different core structures, but it also induces a strong distribution shift. As a result, models that perform well under random splits can degrade substantially under scaffold splits, especially for chemically diverse ADMET endpoints \cite{chemberta2, yang2019analyzing}. This motivates systematic, reproducible benchmarking under scaffold-split evaluation to avoid overly optimistic conclusions.
 
-In addition to providing datasets with standard splits, TDC maintains leaderboards of top-performing models along with their results, some of which are discussed in the following section. These leaderboards, together with community-organized challenges, facilitate direct comparison of approaches and drive progress in the field.
+To build models for ADMET prediction however, one requires a large thorough dataset not only for simply training and evaluation, but for additionally comparing many different models. One such group of datasets is the ADMET collection compiled by Therapeutics Data Commons \cite{huang2021therapeuticsdatacommonsmachine} which contains several datasets for predicting how molecules are absorbed, distributed, broken down and excreted by the body, as well as their toxicity measured on various organisms. Aside for the datasets, with libraries for easily obtaining them and their splits, TDC keeps leaderboards of the all the top models with their performances, some of which are given in the following section.
 
-In this work, we present a reproducible benchmarking framework for molecular property prediction that systematically evaluates HPO strategies for GNNs across six TDC ADMET tasks. Unlike prior work focused on proposing new molecular architectures, our study centers on evaluation methodology and optimization behavior under controlled experimental settings, enabling reproducible comparisons across datasets and HPO strategies.
+In this work we present a reproducible benchmarking framework for molecular property prediction that systematically evaluates  different ADMET models (baseline pretrained models and specialized optimized GNNs) as well as different GNN hyperparameter optimization (HPO) strategies across strategies for Graph Neural Networks (GNNs) across six Therapeutics Data Commons (TDC) ADMET tasks. Unlike prior work proposing new molecular architectures, our focus is on systematic evaluation methodology and optimization behavior under controlled experimental settings, enabling reproducible comparisons across datasets and HPO strategies.
 
-The study includes seven HPO algorithms with 50 trials per dataset--algorithm combination (2,100+ total model evaluations), a comparison against multiple foundation-model baselines (ChemBERTa~\cite{chemberta2}, MolCLR~\cite{molecularConstrastive}, Morgan fingerprints, MolE-style learned fingerprints~\cite{MolE}), and multi-seed validation to quantify statistical robustness.
+The study includes 7 HPO algorithms and 50 trials per dataset-algorithm combination (2,100+ total model evaluations), alongside multi-seed validation to quantify statistical robustness. As baselines, we compare optimized GNNs against a diverse set of molecular representation approaches: classical fingerprint-based methods (Morgan fingerprints), learned fingerprint methods (MolE-style), and pretrained transformer-based foundation models (ChemBERTa, fine-tuned ChemBERTa, MolCLR).
+This breadth of baselines allows us to situate GNN performance relative to both traditional cheminformatics pipelines and modern self-supervised pretraining approaches, while also documenting scaffold-split sensitivity across SMILES-based transformer architectures.
 
 \noindent\textbf{Contributions.} We make the following contributions:
 \begin{itemize}
-    \item We benchmark \textbf{seven HPO algorithms} (Random, PSO, ABC, GA, SA, HC, TPE) on \textbf{six ADMET datasets} from TDC under a consistent scaffold-split evaluation protocol.
-    \item We run \textbf{50 trials} per algorithm--dataset pair, totaling \textbf{2,100+ training runs}, and analyze optimization behavior and budget efficiency.
-    \item We provide \textbf{multi-seed validation} (5 seeds) with confidence intervals to assess result stability and reproducibility.
-    \item We compare optimized GNNs against \textbf{foundation model baselines} and document the severe scaffold-split sensitivity of SMILES-based transformers.
-    \item We derive \textbf{practical recommendations} on which HPO strategy to use for various molecular prediction tasks under limited compute budgets.
+    \item We present a \textbf{reproducible benchmarking framework} for molecular property prediction, evaluating \textbf{7 HPO algorithms} (Random, PSO, ABC, GA, SA, HC, TPE) across \textbf{6 ADMET datasets} from TDC under a consistent scaffold-split evaluation protocol, with multi-seed validation and confidence intervals to ensure result stability.
+    \item We conduct a \textbf{systematic comparison} of HPO algorithms for GNN training through \textbf{2,100+ training runs}, analyzing optimization behavior, budget efficiency, and deriving practical recommendations on HPO strategy selection under limited compute budgets.
+    \item We provide an \textbf{empirical comparison} between optimized task-specific GNNs and pretrained molecular foundation models, documenting scaffold-split sensitivity in SMILES transformers.
 \end{itemize}
-
 
 \section{Related Work}
 
-The TDC ADMET Leaderboards feature a wide range of machine learning models designed for molecular property prediction. Notably, some of the strongest results come from relatively simple approaches. For example, MapLight~\cite{maplight} combines random forests and SVMs with molecular node embeddings, achieving competitive performance. For certain datasets, classical methods such as Random Forest and XGBoost have yielded top results, motivating ensemble strategies such as FCA~\cite{fca}, which constructs a weighted combination of multiple models.
+\subsection{ADMET Prediction}
 
-Our primary focus, however, is on deep learning approaches. Among the simplest yet effective architectures is AttentiveFP~\cite{attentiveFP}, which combines Graph Convolutional Network (GCN) and Graph Attention Network (GAT) layers with Gated Recurrent Unit (GRU) layers. AttentiveFP achieves top-5 results across multiple datasets, in part due to its integration of both edge and node features at the input stage.
+Molecular property prediction has become a crucial application of machine learning in computational drug discovery, with the TDC ADMET benchmark~\cite{huang2021therapeuticsdatacommonsmachine} serving as a widely adopted evaluation platform. Table~\ref{tab:related_work_summary} summarizes representative approaches from the TDC leaderboard and the broader literature, highlighting the diversity of methods and their reported performance.
 
-More advanced deep learning approaches borrow techniques from large language models. These include attribute masking~\cite{attrMasking} and contrastive learning~\cite{molecularConstrastive}. Masking involves removing certain node or edge attributes and training the model to predict the missing values, thereby learning robust molecular embeddings. Contrastive learning is a more general self-supervised technique in which augmented views of the same molecular graph are trained to produce similar embeddings, while embeddings from different molecules are pushed apart.
+\begin{table}[htbp]
+\centering
+\caption{Summary of representative molecular property prediction methods. Performance is reported for selected TDC ADMET tasks under scaffold split where available. GNN = Graph Neural Network, FP = Fingerprint, TF = Transformer.}
+\label{tab:related_work_summary}
+\scriptsize
+\begin{tabular}{llp{4.2cm}l}
+\toprule
+\textbf{Method} & \textbf{Type} & \textbf{Key Approach} & \textbf{Ref.} \\
+\midrule
+\multicolumn{4}{l}{\emph{Traditional / Ensemble Methods}} \\
+\midrule
+MapLight & FP+ML & Morgan FP with RF and SVM on node embeddings & \cite{maplight} \\
+FCA & Ensemble & Weighted combination of RF, XGBoost, and SVM & \cite{cfa} \\
+RDKit2D + MLP & FP+ML & 200 physicochemical descriptors with MLP & \cite{rdkit2d_mlp} \\
+\midrule
+\multicolumn{4}{l}{\emph{Graph Neural Networks}} \\
+\midrule
+AttentiveFP & GNN & GCN/GAT layers with GRU-based attention readout & \cite{attentiveFP} \\
+GCN & GNN & Multi-layer graph convolution with mean pooling & \cite{kipf2017gcn} \\
+GIN & GNN & Graph isomorphism layers for WL-test expressivity & \cite{xu2019gin} \\
+D-MPNN & GNN & Directed message passing on bonds & \cite{yang2019dmpnn} \\
+MPNN++ & GNN & Enhanced message passing ($\sim$10M params) & \cite{miniMol} \\
+\midrule
+\multicolumn{4}{l}{\emph{Self-Supervised / Pretraining}} \\
+\midrule
+Attr.\ Masking & GNN+SSL & Node/edge attribute masking for pretraining & \cite{attrMasking} \\
+GraphCL & GNN+SSL & Graph-level contrastive learning with augmentations & \cite{contrativeLearning} \\
+MolCLR & GNN+SSL & Molecular contrastive learning of representations & \cite{molclr} \\
+\midrule
+\multicolumn{4}{l}{\emph{Foundation Models}} \\
+\midrule
+ChemBERTa-2 & TF & RoBERTa pretrained on 77M SMILES (ZINC) & \cite{chemberta2} \\
+MolBERT & TF & BERT with SMILES and physicochemical objectives & \cite{molbert} \\
+MolE & GNN+FM & Multi-task pretrained GNN encoder & \cite{molE} \\
+DeepMol & GNN+FM & Deep molecular representation learning & \cite{deepMol} \\
+MegaMolBART & TF & BART-based molecular generation and encoding & \cite{mmelon} \\
+MiniMol & GNN+FM & Compact foundation model using MPNN++ & \cite{miniMol} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-Both masking and contrastive learning are commonly used in molecular foundation models. These models typically follow a multi-stage pipeline: first learning molecular embeddings through self-supervised pretraining, then training on multiple prediction tasks simultaneously, and finally fine-tuning for a specific target property. Examples include DeepMol~\cite{deepMol} and MolE~\cite{MolE}. A distinct approach is taken by ChemBERTa~\cite{chemberta2}, which applies a RoBERTa-based language model to learn embeddings from SMILES strings rather than operating directly on molecular graphs. A notable drawback of such foundation models is their large size, which makes them both more expensive to train and less practical for deployment in resource-constrained settings.
+Peeking at the TDC ADMET Leaderboards, one finds a plethora of machine learning models designed specifically for regression and classification tasks on molecules. Surprisingly, more often than not it is some of the simpler designs that show great success. This includes models that are not fully based on deep learning, such as MapLight~\cite{maplight}, which utilizes random forests and SVMs in conjunction with node embeddings, and RDKit2D+MLP~\cite{rdkit2d_mlp}, which passes 200 physicochemical descriptors through a standard multi-layer perceptron. For certain datasets even a regular Random Forest or XGBoost achieves top results, prompting the development of FCA~\cite{cfa}, which takes a weighted combination of all of them.
 
-Recent work has highlighted that transformer-based models exhibit severe distribution shift when evaluated on scaffold-split datasets, achieving high validation AUC but near-random test performance. Our experiments confirm this finding, with ChemBERTa achieving a validation AUC of 0.82 but a test AUC of only 0.46 on Tox21.
+Our main focus, however, lies with deep learning models. Perhaps the simplest of these is AttentiveFP~\cite{attentiveFP}, which utilizes a couple of GCN and GAT layers followed by a series of GRU layers. The resulting model yields top-5 results on many datasets, aided by the fact that it additionally combines edge features and node features at the very start. Other standard GNN architectures that appear prominently in molecular benchmarks include GCN~\cite{kipf2017gcn}, GIN~\cite{xu2019gin}, and Directed Message Passing Neural Networks (D-MPNN)~\cite{yang2019dmpnn}, which operates on bond-level messages rather than atom-level ones, achieving state-of-the-art results on several ADMET endpoints.
+
+The rest of the deep learning models borrow many ideas utilized in large language models (LLMs). These include masking and contrastive learning with negative samples as seen in~\cite{attrMasking} and~\cite{contrativeLearning}. Masking refers to removing certain node or edge attributes and then learning optimal embeddings to predict these missing values. Contrastive learning on the other hand is a more general technique where molecular graphs are modified and embeddings are learned such that the modifications of the same graph have embeddings as similar as possible, while those from different molecules are more distant. MolCLR~\cite{molclr} extends this paradigm with three graph augmentation strategies (atom masking, bond deletion, and subgraph removal) and demonstrates that contrastive pretraining improves downstream ADMET prediction compared to training from scratch.
+
+Masking and contrastive learning are in fact two common methods that go into molecular foundation models. For the most part these models work in a similar principle: first, embeddings are learned via self-supervised pretraining, then they are simultaneously trained on several different prediction tasks, and finally fine-tuned to a specific problem. Such models include DeepMol~\cite{deepMol}, MolE~\cite{molE}, and MegaMolBART~\cite{mmelon}. A more unique case is ChemBERTa~\cite{chemberta2}, which rather than directly learning on graphs utilizes a transformer architecture (RoBERTa) to learn embeddings of SMILES strings, pretrained on 77 million molecules from ZINC-15. Similarly, MolBERT~\cite{molbert} combines masked language modeling on SMILES with auxiliary physicochemical property prediction objectives during pretraining. A great downside of such foundation models, however, is their large size, which makes them both harder to train and less cost-effective to use in general. This is where MiniMol~\cite{miniMol} shines---it is yet another foundation model, utilizing the MPNN++ architecture, which has about 10M parameters yet yields top results for some of the datasets.
+
+\paragraph{Scaffold Split Challenges.}
+Recent work has highlighted that transformer-based models (ChemBERTa, MolBERT) can exhibit substantial distribution shift when evaluated on scaffold-split datasets, achieving high validation AUC but near-random test performance~\cite{yang2019dmpnn,chemberta2}. Wu et al.~\cite{wu2018moleculenet} introduced MoleculeNet as a standardized benchmark with scaffold splitting, demonstrating that this splitting strategy more faithfully reflects the generalization challenge in real drug discovery campaigns. Our experiments confirm this finding: ChemBERTa achieves a validation AUC of 0.82 on Tox21 but degrades to 0.46 on the scaffold-split test set, motivating careful evaluation under realistic splitting regimes.
+
 
 \subsection{Hyperparameter Optimization for Molecular ML}
-Hyperparameter optimization is a key driver of performance in deep learning and is particularly important in molecular property prediction, where datasets are typically small and noisy. Random Search is a strong baseline that can outperform grid search by exploring more diverse configurations when only a subset of hyperparameters is influential~\cite{bergstra2012random}. Bayesian optimization methods such as the Tree-structured Parzen Estimator (TPE), implemented in frameworks like Optuna~\cite{optuna}, model the relationship between hyperparameters and validation performance to improve sample efficiency. In molecular ML, where each training run can be costly, TPE-style methods are often attractive under limited trial budgets. In contrast, population-based metaheuristics (PSO, GA, ABC) provide broader exploration of the search space but may require larger budgets to converge reliably.
 
-\subsection{Foundation Models and Molecular Representation Learning}
-Recent foundation models for chemistry include SMILES-based transformers (e.g., ChemBERTa~\cite{chemberta2}) and graph-based contrastive methods (e.g., MolCLR~\cite{molecularConstrastive}). While pretrained representations can transfer across tasks, their effectiveness depends on the evaluation protocol. In particular, scaffold-split evaluation can expose distribution shifts that lead to strong validation performance but poor test-set generalization for models that overfit to chemical substructures or tokenization patterns. This motivates comparing task-specific end-to-end GNN training with pretrained encoders used as frozen feature extractors or with limited fine-tuning.
+Hyperparameter optimization is a key driver of performance in deep learning models and is particularly important in molecular property prediction where datasets are small and noisy. Bergstra and Bengio~\cite{bergstra2012random} demonstrated that Random Search can outperform grid search by exploring more diverse configurations when only a subset of hyperparameters is influential, establishing it as a strong baseline. Bayesian optimization methods such as the Tree-structured Parzen Estimator (TPE)~\cite{bergstra2011tpe}, implemented in frameworks like Optuna~\cite{akiba2019optuna}, model the relationship between hyperparameters and validation performance to improve sample efficiency. In molecular ML, where each training run can be costly, TPE-style methods are often attractive under limited trial budgets.
+
+In contrast, population-based metaheuristics, like Particle Swarm Optimization~\cite{kennedy1995pso}, Genetic Algorithms~\cite{holland1975ga}, and Artificial Bee Colony~\cite{karaboga2005abc}, provide broader exploration of the search space but may require larger budgets to converge reliably. Simulated Annealing~\cite{kirkpatrick1983sa} offers a middle ground by accepting suboptimal moves early in the search, enabling escape from local optima. Despite their widespread use in combinatorial optimization, systematic comparisons of these metaheuristic HPO strategies on molecular property prediction tasks remain scarce, particularly under scaffold-split evaluation protocols. Our work addresses this gap by benchmarking all seven strategies under identical experimental conditions.
 
 
-\section{Materials and Methods}
+\subsection{Challenges in Molecular ML: Distribution Shifts and Generalization}
+While pretrained representations can transfer across tasks, their effectiveness heavily depends on the evaluation protocol. Recent work has highlighted that foundation models, particularly transformer-based models like ChemBERTa and MolBERT, can exhibit substantial distribution shift when evaluated on scaffold-split datasets. In such scenarios, they often achieve high validation AUC but near-random test performance \cite{chemberta2, yang2019analyzing}.
+
+Scaffold-split evaluation can expose distribution shift that leads to strong validation performance but poor test generalization for models that overfit chemical substructures or tokenization patterns. MoleculeNet \cite{wu2018moleculenet} was introduced as a standardized benchmark with scaffold splitting, demonstrating that this splitting strategy more faithfully reflects the generalization challenge in real drug discovery campaigns by partitioning molecules based on their core structural frameworks (scaffolds) rather than random selection.
+
+These marked generalization gaps reported in the literature motivate comparing task-specific end-to-end GNN training with pretrained encoders used as frozen feature extractors and with limited fine-tuning.
+
+
+\section{Materials and methods}
 
 \subsection{Datasets and Evaluation Protocol}
-We evaluate on six ADMET datasets using scaffold-based splitting (Bemis--Murcko scaffolds~\cite{moleculenet})
-with an 80/10/10 train/validation/test ratio and a fixed seed (42) for reproducibility.
-During HPO, the test split remains fully held out; model selection is performed solely
-on the validation metric, and final performance is reported once on the test split.
+\label{sec:datasets}
 
-\paragraph{Splitting protocol.}
-We use the TDC two-way scaffold split and manually subdivide the resulting training portion
-into 90/10 train/validation subsets. This ensures that molecules with different core structures
-are separated across splits, better reflecting real-world generalization to novel chemical space.
+We evaluate all models on six molecular property prediction tasks drawn from the
+Therapeutics Data Commons (TDC) ADMET benchmark~\cite{huang2021therapeuticsdatacommonsmachine},
+covering four pharmacokinetic (ADME) regression tasks and two toxicity classification
+tasks.  Figure~\ref{fig:class-distribution} provides an overview of data provenance
+and class composition across all six datasets, highlighting the severe class
+imbalance present in the toxicity benchmarks.
+
+\subsubsection*{ADME Regression Tasks}
+
+\paragraph{Caco-2 Permeability (Caco2\_Wang).}
+The Caco-2 cell monolayer assay is the gold-standard \emph{in vitro} surrogate for
+human intestinal absorption~\cite{artursson1991caco2}.  High apparent permeability
+($P_{app} > 10^{-6}$ cm/s) is associated with good oral bioavailability.  The
+dataset, curated by Wang et al.~\cite{wang2016admet}, contains \textbf{910 compounds}
+with target values already expressed in log(cm/s) units; no further log transformation
+is applied.  Caco-2 is considered the most tractable regression task in our benchmark
+because permeability is governed primarily by molecular size, lipophilicity, and
+hydrogen-bond capacity---features that GNNs can capture directly from atom graphs.
+
+\paragraph{Half-Life Prediction (Half\_Life\_Obach).}
+Plasma half-life ($t_{1/2}$, hours) determines dosing frequency and is essential for
+designing drugs with adequate therapeutic windows.  However, half-life is a composite
+pharmacokinetic parameter influenced not only by molecular structure but also by
+volume of distribution, protein binding fraction, and individual patient
+variability~\cite{obach1999prediction}.  The dataset is drawn from the Obach
+FDA-approved drug collection and contains \textbf{667 compounds}
+spanning a wide dynamic range (0.5--100$+$ hours).  We apply a log transformation
+before standardisation to reduce target skewness.
+
+\paragraph{Hepatocyte Clearance (Clearance\_Hepatocyte\_AZ).}
+Intrinsic clearance measured in freshly isolated human hepatocytes
+($\mu$L/min/10$^6$ cells) captures both phase-I and phase-II metabolic routes and
+is the most physiologically relevant \emph{in vitro} metabolic stability
+assay~\cite{riley2001pharma}.  The dataset was generated internally at AstraZeneca
+and is distributed through TDC~\cite{huang2021therapeuticsdatacommonsmachine},
+comprising \textbf{1\,213 proprietary compounds}.
+Low clearance values indicate slow hepatic elimination and a longer \emph{in vivo}
+half-life.  This task proved the most challenging in our benchmark, with GNN models
+yielding negative R$^2$ values, indicating that molecular structure alone is
+insufficient to explain the variance in hepatic metabolism (see
+Section~\ref{results}).
+
+\paragraph{Microsomal Clearance (Clearance\_Microsome\_AZ).}
+Human liver microsomal assays ($\mu$L/min/mg protein) measure primarily cytochrome
+P450-mediated (CYP) oxidative metabolism; they offer higher throughput than
+hepatocyte assays but capture only phase-I reactions~\cite{obach2006trend}.  The
+AstraZeneca dataset contains \textbf{1\,102 compounds}.
+Like hepatocyte clearance, microsomal clearance values are log-transformed and
+then standardised using train-set statistics.
+
+\subsubsection*{Toxicity Classification Tasks}
+
+\paragraph{Tox21 Nuclear Receptor -- Androgen Receptor (Tox21 NR-AR).}
+The Tox21 initiative~\cite{tox21data} assembled a large multi-assay toxicology
+panel spanning nuclear receptor signalling and stress response pathways to enable
+high-throughput environmental hazard screening.  We use the \textbf{NR-AR} assay
+(androgen receptor agonism), which identifies compounds that can disrupt androgen
+signalling, a key mechanism in endocrine disruption and reproductive
+toxicity.  After removing molecules with invalid SMILES, the dataset contains
+\textbf{7\,258 compounds}, of which only $\approx3.5\%$ are active (positive) samples
+(see Figure~\ref{fig:class-distribution})---making this the most class-imbalanced
+task in our benchmark.  To mitigate the imbalance, we apply positive-class
+weighting in the binary cross-entropy loss, where the weight is set to the ratio of
+negative to positive samples in the training fold.
+
+\paragraph{hERG Cardiotoxicity (hERG).}
+Blockade of the hERG potassium ion channel is the predominant mechanism of
+drug-induced QT interval prolongation and potentially fatal cardiac arrhythmias,
+and the hERG assay is a mandatory safety screen in preclinical drug
+development~\cite{sanguinetti2006herg}.  The TDC hERG dataset contains
+\textbf{655 compounds} with binary blocker / non-blocker labels; approximately
+31\% of compounds are blockers, making this a considerably more balanced
+classification task than Tox21 NR-AR (Figure~\ref{fig:class-distribution}).
+
+\paragraph{Splitting and evaluation protocol.}
+We use the TDC 2-way scaffold split function, which partitions compounds by
+Bemis--Murcko scaffolds~\cite{doi:10.1021/jm9602928} so that molecules with
+structurally distinct core rings appear in different folds.  This mirrors realistic
+drug-discovery campaigns, where models must generalise to novel chemical series.  The
+TDC scaffold split provides train and test sets; we further subdivide the train set
+90/10 (train/validation) using a fixed random seed (42) to enable early stopping and
+model selection without touching the held-out test set.  The final split proportions
+are approximately \textbf{80 / 10 / 10} (train / val / test) across all datasets.
+
+During hyperparameter optimisation (HPO), the test split remains \emph{fully held
+out}; model selection is performed solely on the validation metric.  Final performance
+is reported once on the test split after HPO is complete, preventing any implicit
+information leakage from repeated test-set evaluations.
 
 \paragraph{Target transformations.}
-For regression tasks, we apply log transformation for skewed target distributions and clip targets
-to a minimum value of $10^{-3}$ for non-Caco2 datasets, followed by standardization using the
-train+validation statistics. For classification tasks, targets are binary encoded and we apply
-class weighting to mitigate severe imbalance (e.g., Tox21 NR-AR).
+For the three skewed regression tasks (Half-Life, Hepatocyte and Microsomal
+Clearance) we apply $y' = \log(y + \epsilon)$, where $\epsilon = 10^{-3}$ is a
+small offset to handle near-zero values, followed by z-score normalisation using
+training-set statistics.  Caco-2 targets are already in log(cm/s) units, so only
+z-score normalisation is applied.  All normalisation parameters are computed
+exclusively on the training fold and reused for validation and test sets to prevent
+data leakage.  Classification targets are kept as binary integers (0/1) without
+transformation.
 
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{images/sankey-diagram.png}
+    \caption{Overview of data source and task labels. This flowchart details the $11,805$ total instances sourced from the TDC Repository. PK properties ($n=3,892$) are modeled via regression across four metabolic and permeability datasets. Toxicity and hERG inhibition ($n=7,913$) are treated as classification tasks, categorized into Active/Toxic ($n=457$) and Inactive/Safe ($n=7,456$) classes.}
+    \label{fig:class-distribution}
+\end{figure}
+
+\subsection{Models}
+\label{sec:models}
+
+The model architecture and training configuration used in this work are described in detail in Section~\ref{sec:model_arch}. In brief, we employ a GCN-based graph neural network backbone with batch normalization, concatenated mean/max pooling, and an MLP prediction head. Foundation model baselines are described in Section~\ref{sec:foundation_baselines}.
 
 \subsection{Optimization Algorithms}
 \subsubsection{Genetic Algorithm}
-\textbf{Genetic Algorithms} (GAs) draw inspiration from natural selection and evolutionary principles, advancing a population of candidate solutions through multiple generations. Each candidate encodes a potential hyperparameter configuration, typically represented as a chromosome. The population evolves through biologically inspired operations---selection, crossover, and mutation---that progressively improve fitness as measured by model performance metrics. For hyperparameter tuning, GAs excel at navigating complex, high-dimensional search spaces by effectively balancing exploration of new regions with exploitation of promising areas. The mutation and recombination mechanisms prove particularly valuable for escaping local optima, making GAs well-suited for non-convex and discrete hyperparameter landscapes.
+\textbf{Genetic Algorithms} (GAs) draw inspiration from natural selection and evolutionary principles, advancing a population of candidate solutions through multiple generations \cite{gaopt}. Each candidate encodes a potential hyperparameter configuration, typically represented as a chromosome or encoded string. The population evolves through biologically-inspired operations—selection, crossover, and mutation—that progressively enhance fitness as measured by model performance metrics. For hyperparameter tuning, GAs excel at navigating complex, high-dimensional search spaces by effectively balancing exploration of new regions with exploitation of promising areas. The mutation and recombination mechanisms prove particularly valuable for escaping local optima, making GAs well-suited for non-convex and discrete hyperparameter landscapes.
 \subsubsection{Particle Swarm Optimization}
-\textbf{Particle Swarm Optimization} (PSO) abstracts the collective behavior of bird flocks and schooling fish to solve continuous optimization problems. Each particle represents a candidate hyperparameter configuration and iteratively updates its position by considering both its own historical best performance and the best solution discovered by the entire swarm. This combination of individual and collective learning creates an effective balance between exploratory and exploitative search, allowing PSO to converge efficiently toward high-quality hyperparameter sets. PSO is particularly effective for continuous and real-valued hyperparameters, offering the dual advantages of straightforward implementation and minimal hyperparameter tuning requirements for the optimizer itself.
+\textbf{Particle Swarm Optimization} abstracts the collective behavior of bird flocks and schooling fish to solve continuous optimization problems. Within a swarm, each particle represents a candidate hyperparameter configuration and iteratively updates its position by considering both its own historical best performance and the best solution discovered by the entire swarm \cite{psoopt}. This combination of individual and collective learning creates an effective balance between exploratory and exploitative search, allowing PSO to converge efficiently toward high-quality hyperparameter sets. PSO is particularly effective for continuous and real-valued hyperparameters, offering the dual advantages of straightforward implementation and minimal hyperparameter tuning requirements for the optimizer itself.
 \subsubsection{Artificial Bee Colony}
-\textbf{Artificial Bee Colony} (ABC) optimization mimics the foraging behavior of honeybee colonies. The algorithm maintains three bee types---employed bees, onlookers, and scouts---each contributing distinct exploration and exploitation capabilities. Candidate solutions are treated as nectar sources, and bees collaboratively search nearby solutions, assess their quality, and disseminate information throughout the colony. The ABC algorithm dynamically equilibrates exploration and exploitation, achieving robust performance across both discrete and continuous hyperparameter spaces.
+\textbf{Artificial Bee Colony} (ABC) optimization mimics the sophisticated foraging behavior observed in honeybee colonies \cite{abcopt}. The algorithm maintains a colony of three bee types—employed bees, onlookers, and scouts—each contributing distinct exploration and exploitation capabilities. Within this framework, candidate solutions are treated as nectar sources, and bees collaboratively search nearby solutions, assess their quality, and disseminate information throughout the colony. The ABC algorithm dynamically equilibrates exploration and exploitation, achieving robust performance across both discrete and continuous hyperparameter spaces. Its competitive results compared to other swarm-based metaheuristics demonstrate particular strength in tackling complex, multimodal optimization landscapes.
 \subsubsection{Hill Climbing}
-\textbf{Hill Climbing} (HC) is one of the simplest optimization heuristics. Starting from an initial hyperparameter configuration, the algorithm transitions to a neighboring configuration only when it yields improved model performance. This greedy approach enables fast convergence in smooth, unimodal search landscapes but is vulnerable to premature convergence at local optima, particularly in the non-convex hyperparameter spaces common in deep learning. Despite this limitation, Hill Climbing remains practical when the hyperparameter space is limited in dimensionality or when adequate initialization strategies are available.
+\textbf{Hill Climbing} constitutes one of the most elementary optimization heuristics, yet provides a valuable baseline reference for hyperparameter optimization tasks. The algorithm begins with an initial hyperparameter configuration and only transitions to a neighboring configuration when it demonstrates improved model performance \cite{hcopt}. This greedy approach enables fast convergence in smooth, unimodal search landscapes. Nevertheless, the complete absence of local-optima escape mechanisms renders hill climbing vulnerable to premature convergence, particularly in the non-convex hyperparameter spaces common in contemporary deep learning applications. Despite this vulnerability, hill climbing remains practical when the hyperparameter space is limited in dimensionality or when adequate initialization strategies are available.
 \subsubsection{Random Search}
-\textbf{Random Search} is a widely used baseline for hyperparameter optimization, operating by uniformly sampling configurations across the search space~\cite{bergstra2012random}. This method proves particularly valuable in high-dimensional optimization problems where only a limited subset of hyperparameters meaningfully influences performance. Research has demonstrated that Random Search frequently surpasses grid search when the search space contains non-critical hyperparameters, as it allocates resources more effectively by exploring diverse configurations instead of exhaustively examining irrelevant parameter combinations. Its main advantages are simplicity, ease of parallelization, and the absence of assumptions about search space structure.
+\textbf{Random search} stands out as an effective baseline approach for hyperparameter optimization \cite{bergstra2012random}, operating by uniformly sampling hyperparameter configurations across the search space. This method proves particularly valuable in high-dimensional optimization problems where only a limited subset of hyperparameters meaningfully influence performance outcomes. Research has shown that random search frequently surpasses grid search when the search space contains non-critical hyperparameters, as it allocates computational resources more effectively by exploring diverse configurations instead of exhaustively examining irrelevant parameter combinations. The approach offers several practical advantages, like the fact that it is conceptually straightforward, readily parallelizable, and requires no prior assumptions about the underlying search space structure. These properties have established random search as a standard first-line methodology, commonly deployed before transitioning to more sophisticated optimization algorithms.
 \subsubsection{Simulated Annealing}
-\textbf{Simulated Annealing} (SA) adapts the physical annealing process used in metallurgy to optimization problems. The algorithm explores the solution space while accepting both improvements and strategically worse solutions with a probability that decreases over time, helping to escape local optima. When applied to hyperparameter optimization, SA initiates with an initial configuration and iteratively generates neighboring candidates through controlled perturbations. As the temperature gradually decreases, the algorithm transitions toward a more conservative mode, concentrating optimization efforts around the best configurations identified throughout the search.
-\subsubsection{Tree-structured Parzen Estimator}
-\textbf{Tree-structured Parzen Estimator} (TPE) is a Bayesian optimization method implemented via the Optuna framework~\cite{optuna}. Unlike the metaheuristic algorithms above, TPE builds a probabilistic model of the objective function and uses it to select promising hyperparameter configurations, achieving better sample efficiency under limited budgets.
+\textbf{Simulated Annealing} (SA) adapts the physical annealing process used in metallurgy, heating and gradual cooling to produce stable crystal structures, to optimization problems. The algorithm systematically explores the solution space while accepting both performance improvements and strategic downhill moves, a feature that helps circumvent entrapment in local optima. When applied to hyperparameter optimization, SA initiates with an initial configuration and iteratively generates neighboring candidates through controlled perturbations \cite{saopt}. Acceptance decisions incorporate both performance gains and a temperature-dependent probability that permits uphill moves early in execution. As temperature gradually declines, the algorithm transitions toward a more conservative mode, concentrating optimization efforts around the best configurations identified throughout the search.
+
+\subsubsection{Tree-structured Parzen Estimator (Optuna)}
+Hyperparameter optimization is performed using \textbf{Optuna} with the Tree-structured Parzen Estimator (TPE) \cite{akiba2019optuna} as the selected sampling strategy. TPE is a Bayesian optimization algorithm that models the distributions of high-performing and low-performing hyperparameter configurations separately. By leveraging these probabilistic models, it proposes new candidate configurations that are more likely to yield improved objective values, enabling a focused and efficient exploration of the search space.
+Optuna's define-by-run paradigm allows for the dynamic and conditional construction of search spaces, offering substantial flexibility when defining complex hyperparameter relationships. In addition, its built-in pruning mechanisms evaluate intermediate results during training and terminate underperforming trials early, thereby reducing computational overhead. Combined with TPE, these features provide an adaptive and resource-efficient approach to hyperparameter optimization.
 
 \subsection{Foundation Model Baselines}
-We evaluate several representation-learning baselines to contextualize the optimized GNN performance: (i)~Morgan fingerprints (ECFP4) with an MLP predictor, (ii)~ChemBERTa~\cite{chemberta2} as a SMILES transformer encoder, (iii)~MolCLR-style contrastive graph embeddings~\cite{molecularConstrastive}, and (iv)~MolE molecular foundation model embeddings~\cite{MolE}. We consider two settings for pretrained encoders: \textbf{frozen encoder + trainable MLP head} and \textbf{limited fine-tuning} (ChemBERTa-FT) where we fine-tune the encoder with a small learning-rate sweep while keeping the downstream head fixed.
+\label{sec:foundation_baselines}
+
+We evaluate several representation-learning baselines to contextualize the optimized GNN performance: (i)~Morgan fingerprints (ECFP) with an MLP predictor, (ii)~ChemBERTa as a SMILES transformer encoder, and (iii)~MolCLR-style contrastive graph embeddings. We consider two settings for pretrained encoders: \textbf{frozen encoder + trainable MLP head} and \textbf{limited fine-tuning} (ChemBERTa-FT) where we fine-tune the encoder with a small learning-rate sweep while keeping the downstream head fixed.
 
 For the frozen setting, embeddings are extracted once per molecule and an MLP is trained on the train split, with early stopping based on the validation split. For fairness under compute constraints, baselines use a fixed head architecture and a small learning-rate sweep, while the GNN receives the full 50-trial HPO budget. All baselines use the same dataset splits and evaluation metrics as the GNN experiments.
 
-
 \subsection{Benchmarking Framework Overview}
-The benchmarking framework provides a systematic infrastructure for evaluating, comparing, and optimizing GNNs and foundation models for molecular property prediction across ADME and toxicity tasks. It enables researchers to identify performance bottlenecks, validate architectural and hyperparameter choices, and ensure that predictive models meet accuracy requirements across diverse molecular datasets. Figure~\ref{fig:benchmark-framework} illustrates the overall architecture.
+The benchmarking framework represents a systematic approach to evaluating, comparing, and optimizing Graph Neural Networks (GNNs) and Foundation Models for molecular property prediction in ADME (Absorption, Distribution, Metabolism, and Excretion) and Toxicity analysis. In computational drug discovery, where accurate prediction of pharmacokinetic properties determines drug candidate viability, such a framework becomes indispensable for ensuring reproducible and scientifically rigorous model evaluation. This infrastructure enables researchers to identify performance bottlenecks in neural architectures (Section~\ref{sec:models}), validate architectural modifications and hyperparameter choices, and ensure predictive models meet stringent accuracy requirements across diverse molecular datasets including half-life prediction, hepatocyte clearance, microsomal clearance, cell permeability, and critical toxicity endpoints (Section~\ref{sec:datasets}).
 
 \subsubsection{Architectural Design and Components}
 At the core of this framework lies a modular architecture ensuring flexibility and extensibility, qualities essential for machine learning research where model architectures, evaluation protocols, and performance metrics evolve continuously. The framework comprises five fundamental components, each fulfilling a distinct yet synergistic role:
 
-\textbf{The Benchmark Manager} orchestrates the entire evaluation process, coordinating execution of multiple model configurations across six molecular datasets (four ADME regression tasks and two toxicity classification tasks), managing experimental configurations specifying architectural choices and hyperparameters, and ensuring consistent evaluation protocols enabling fair comparisons between different optimization strategies.
+\textbf{The Benchmark Manager} orchestrates the entire evaluation process, coordinating execution of multiple model architectures across 6 diverse molecular datasets (4 ADME regression tasks and 2 Toxicity classification tasks), managing experimental configurations specifying architectural choices and hyperparameters, and ensuring consistent evaluation protocols enabling fair comparisons between fundamentally different neural network designs. This centralized orchestration eliminates inconsistencies plaguing ad-hoc evaluation methodologies.
 
-\textbf{The Metrics Collector} implements a multi-faceted measurement system capturing performance indicators across prediction quality, computational efficiency, and training dynamics. This component employs a plugin-based architecture where specialized metric calculators operate independently, enabling seamless integration of novel evaluation criteria such as uncertainty quantification metrics or chemical space coverage assessments without requiring modifications to the core infrastructure.
+\textbf{The Metrics Collector} implements a sophisticated multi-faceted measurement system capturing performance indicators across prediction quality, computational efficiency, and training dynamics. This component employs a plugin-based architecture where specialized metric calculators operate independently, enabling seamless integration of novel evaluation criteria such as uncertainty quantification metrics, chemical space coverage assessments, or domain-specific performance measures without requiring modifications to the core infrastructure.
 
 \textbf{The Data Recorder} embodies separation between measurement and persistence by decoupling performance metric collection from storage implementation, supporting multiple backend options including CSV/JSON files for immediate inspection, structured databases for complex querying, and cloud storage for collaborative research environments.
 
-\textbf{The Results Analyzer} provides comprehensive statistical analysis extending beyond simple metric aggregation to include cross-validation statistics with confidence intervals, statistical significance testing through Wilcoxon signed-rank tests, performance stratification across molecular subpopulations, and trend analysis revealing how model performance correlates with dataset characteristics such as molecular complexity or structural diversity.
+\textbf{The Results Analyzer} provides comprehensive statistical analysis extending beyond simple metric aggregation to include cross-validation statistics with confidence intervals, statistical significance testing through paired t-tests and Wilcoxon signed-rank tests, performance stratification across molecular subpopulations, and trend analysis revealing how model performance correlates with dataset characteristics such as molecular complexity or structural diversity.
 
-\textbf{The Report Generator} transforms numerical results and statistical analyses into publication-ready outputs including comprehensive performance tables, architectural comparison visualizations, ablation study summaries, and methodology documentation.
+\textbf{The Report Generator} transforms numerical results and statistical analyses into scientifically rigorous, publication-ready outputs including comprehensive performance tables, architectural comparison visualizations, ablation study summaries, and methodology documentation.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=\linewidth]{Benchmark-Architecture-GNN.png}
-    \caption{Overview of the benchmarking framework for evaluating and optimizing molecular GNN and foundation models on ADMET tasks. The diagram depicts the high-level system components; individual module implementations may differ from the labels shown (e.g., the GNN encoder uses GraphConv layers rather than the GCN/GAT/GIN variants listed).}
+    \caption{Modular benchmarking architecture for evaluating molecular graph neural networks and foundation models on ADME and toxicity prediction tasks. The framework consists of three layers: a benchmark orchestration layer coordinating datasets and experimental configurations, a model execution layer evaluating multiple neural architectures, and an evaluation pipeline.}
     \label{fig:benchmark-framework}
 \end{figure}
 
 \subsubsection{Multi-Dimensional Performance Evaluation}
-The framework's metrics collection operates across three interconnected dimensions characterizing model performance from complementary perspectives:
+The framework's metrics collection operates across three interconnected dimensions characterizing model performance from complementary perspectives, summarized in Table~\ref{tab:metrics_dimensions}.
 
-\begin{itemize}
-    \item \textbf{Prediction Metrics} quantify molecular property prediction quality through:
-    \begin{itemize}
-        \item \textbf{Regression Metrics (ADME):} Root Mean Squared Error (RMSE) measuring average prediction deviation, coefficient of determination ($R^2$) indicating explained variance, and Mean Absolute Error (MAE) providing interpretable error magnitudes.
-        \item \textbf{Classification Metrics (Toxicity):} Area Under the ROC Curve (AUC) measuring discrimination capability, Accuracy, and F1-score for balanced assessment of toxic/non-toxic predictions.
-    \end{itemize}
+\begin{table}[htbp]
+\centering
+\caption{Multi-dimensional performance evaluation metrics used in the benchmarking framework.}
+\label{tab:metrics_dimensions}
+\small
+\begin{tabular}{llp{6.5cm}}
+\toprule
+\textbf{Dimension} & \textbf{Metric} & \textbf{Description} \\
+\midrule
+\multirow{5}{*}{Prediction} & RMSE & Average prediction deviation (regression) \\
+ & $R^2$ & Coefficient of determination (regression) \\
+ & MAE & Interpretable error magnitude (regression) \\
+ & AUC-ROC & Discrimination capability (classification) \\
+ & F1-score & Balanced precision--recall assessment (classification) \\
+\midrule
+\multirow{4}{*}{Training} & Convergence speed & Epochs to reach performance plateau \\
+ & Training stability & Loss curve variance and gradient statistics \\
+ & Generalization gap & Train--validation performance discrepancy \\
+ & Overfitting indicators & Train--test metric divergence \\
+\midrule
+\multirow{4}{*}{Computational} & Training time & Wall-clock time for full optimization \\
+ & Inference latency & Per-molecule prediction time \\
+ & Memory consumption & Forward and backward pass memory \\
+ & Parameter efficiency & Parameters-to-performance ratio \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-    \item \textbf{Training Metrics} illuminate learning dynamics and optimization characteristics by tracking:
-    \begin{itemize}
-        \item Convergence speed measured through epochs required to reach performance plateaus
-        \item Training stability quantified by loss curve variance and gradient statistics
-        \item Generalization gap calculated as discrepancy between training and validation performance
-        \item Overfitting indicators such as divergence between training and test set metrics
-    \end{itemize}
-    This temporal dimension reveals whether architectures learn efficiently from limited molecular data---crucial given that high-quality ADMET datasets typically contain only hundreds to low thousands of compounds.
-
-    \item \textbf{Computational Metrics} measure:
-    \begin{itemize}
-        \item Wall-clock training time for full model optimization
-        \item Inference latency for individual molecular predictions
-        \item Memory consumption during forward and backward passes
-        \item Parameter efficiency expressed as the ratio of model parameters to achievable performance
-    \end{itemize}
-    These metrics enable informed trade-offs between predictive accuracy and computational cost.
-\end{itemize}
+\noindent \textbf{Prediction Metrics} quantify molecular property prediction quality through task-appropriate measures: RMSE, $R^2$, and MAE for ADME regression tasks, and AUC-ROC, accuracy, and F1-score for toxicity classification. \textbf{Training Metrics} illuminate learning dynamics and optimization characteristics, revealing whether architectures learn efficiently from limited molecular data—crucial given that high-quality ADME/Tox datasets typically contain only hundreds to low thousands of compounds. \textbf{Computational Metrics} enable informed trade-offs between predictive accuracy and computational cost, capturing wall-clock training time, inference latency, memory consumption, and parameter efficiency.
 
 \subsubsection{Integration with GNN and Foundation Model Pipelines}
 
-The framework integrates with both \textbf{GNN-based} and \textbf{foundation model-based} pipelines, each requiring specialized benchmarking approaches:
+The framework integrates seamlessly with critical components of both \textbf{GNN-based} and \textbf{Foundation Model-based} pipelines, each requiring specialized benchmarking approaches.
 
-\begin{itemize}
-    \item \textbf{GNN Model Architecture:} The framework evaluates a GraphConv-based~\cite{pyg} graph neural network with batch normalization, ReLU activations, and concatenated mean/max pooling. It optimizes architectural hyperparameters such as layer depth, hidden channel dimensions, and MLP head dimensions while profiling molecular featurization (graph construction time from SMILES strings) and its impact on downstream performance.
+\paragraph{GNN Model Architectures.} The framework evaluates diverse graph neural network designs, including Graph Convolutional Networks (GCN), Graph Attention Networks (GAT), Graph Isomorphism Networks (GIN), and GraphSAGE architectures. It optimizes architectural hyperparameters such as layer depth, hidden channel dimensions, dropout rates, and aggregation functions while profiling molecular featurization (graph construction time from SMILES strings) and its impact on downstream performance.
 
-    \item \textbf{Foundation Models:} The framework supports benchmarking of:
-    \begin{itemize}
-        \item Pre-trained molecular embeddings (e.g., ChemBERTa~\cite{chemberta2}, MolE~\cite{MolE})
-        \item Fingerprint-based approaches (Morgan-FP)
-        \item Contrastive graph embeddings (MolCLR~\cite{molecularConstrastive})
-    \end{itemize}
-    For these models, the pipeline optimizes projection dimension, downstream predictor architecture (MLP depth/width), and learning dynamics, freezing the pre-trained encoder to evaluate representation quality. Performance assessment focuses on embedding extraction efficiency and transfer learning effectiveness.
-\end{itemize}
+\paragraph{Foundation Models.} The framework supports benchmarking of pre-trained molecular embeddings (e.g., ChemBERTa, BioMedBERT) and fingerprint-based approaches (Morgan-FP). For these models, the Foundation Model HPO pipeline optimizes projection dimension, downstream predictor architecture (MLP depth/width), and learning dynamics, freezing the pre-trained encoder to evaluate representation quality. Performance assessment focuses on embedding extraction efficiency and transfer learning effectiveness.
 
 The training pipeline receives comprehensive monitoring covering batch processing efficiency, gradient computation performance, parameter update overhead, and optimization strategy effectiveness including learning rate schedules, weight decay regularization, and early stopping criteria. Hyperparameter optimization procedures are tracked through search space exploration coverage, convergence to optimal configurations, and statistical reliability of performance estimates derived from cross-validation.
 
+\subsubsection{Model Architecture and Training}
+\label{sec:model_arch}
 
-\section{Experiments, Results and Discussion}
-\label{sec:experiments}
+\paragraph{Model Architecture.}
+We use a graph neural network backbone based on stacked Graph Convolutional Network (GCN) layers with batch normalization and ReLU activation. Each molecule is represented as a molecular graph constructed from SMILES using RDKit. Atom features include atomic number, degree, formal charge, hybridization, aromaticity, ring membership, hydrogen count, and atomic mass (8 features). The GNN encoder produces node embeddings which are aggregated into a graph-level representation using concatenated global mean pooling and global max pooling. The pooled representation is passed to an MLP prediction head with dropout and batch normalization. This design provides a stable and efficient backbone for systematic benchmarking under limited data regimes.
+
+
+\textbf{Training Configuration.} All models were trained using the Adam optimizer with default parameters. For training, a batch size of 32 was employed, with a maximum of 100 epochs for regression tasks and 50 epochs for classification tasks. Early stopping was applied based on validation loss with a patience of 12 epochs. Regression models were optimized using mean squared error (MSE) loss, while classification models used binary cross-entropy (BCE) loss with logits and incorporated positive class weighting to address class imbalance. Target values were standardized to have zero mean and unit variance. Evaluation was performed with a batch size of 64, and gradient clipping was applied with a maximum norm of 1.0.
 
 \subsection{Experimental Setup}
 \label{sec:experimental_setup}
 
 \subsubsection{Datasets}
 
-We evaluated our framework on six molecular property prediction tasks from the TDC ADMET benchmark~\cite{tdc}: four ADME regression tasks and two toxicity classification tasks. Table~\ref{tab:dataset_stats} summarizes the dataset characteristics.
+We evaluated our framework on six molecular property prediction tasks from the Therapeutics Data Commons (TDC) ADMET benchmark~\cite{huang2021therapeuticsdatacommonsmachine}: four ADME regression tasks and two toxicity classification tasks. Table~\ref{tab:dataset_stats} summarizes the dataset characteristics.
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
 \caption{Dataset statistics and evaluation metrics (TDC ADMET).}
 \label{tab:dataset_stats}
@@ -218,73 +369,59 @@ hERG & Cardiotoxicity & 655 & Scaffold & AUC-ROC \\
 \end{table}
 
 
-\subsubsection{Model Architecture and Training}
 
-\paragraph{Model Architecture.}
-We use a graph neural network backbone based on stacked GraphConv layers~\cite{pyg} with batch normalization and ReLU activation. Each molecule is represented as a molecular graph constructed from SMILES using RDKit. Atom-level features include atomic number, degree, formal charge, hybridization, aromaticity, ring membership, hydrogen count, and atomic mass (8 features per atom). Additionally, graph-level ADME descriptors (e.g., molecular weight, LogP, TPSA) are computed and concatenated with the pooled node representations. The GNN encoder produces node embeddings that are aggregated into a graph-level representation using concatenated global mean and max pooling. The pooled representation is then passed to a three-layer MLP prediction head with batch normalization. This design provides a stable and efficient backbone for systematic benchmarking under limited data regimes.
+\subsubsection{HPO Search Space}
+In Table~\ref{tab:search_space} we have defined the search space of the HPOs for different hyperparameters of the models.
 
-
-\textbf{Training Configuration.} All models were trained with:
-\begin{itemize}
-    \item Optimizer: Adam~\cite{adam} with default parameters
-    \item Batch size: 32
-    \item Maximum epochs: 100 (regression), 50 (classification)
-    \item Early stopping: patience of 12 epochs on validation loss
-    \item Loss: MSE (regression), binary cross-entropy with logits (classification)
-    \item Target normalization: standardized to zero mean, unit variance
-    \item Evaluation batch size: 64
-    \item Gradient clipping: max norm = 1.0
-    \item Class weighting: positive class weighting for imbalanced classification tasks (e.g., Tox21)
-\end{itemize}
-
-\subsubsection{Hyperparameter Optimization}
-
-\textbf{Search Space:}
-\begin{itemize}
-    \item Hidden dimensions: \{64, 96, 128, 192, 256, 384, 512\}
-    \item Number of GraphConv layers: \{3, 4, 5, 6, 7\}
-    \item Learning rate: $[10^{-4}, 10^{-2}]$ (log-uniform)
-    \item Weight decay: $[10^{-6}, 10^{-2}]$ (log-uniform)
-    \item MLP head dimensions: three layers with categorical presets (layer~1: \{128, 192, 256, 384, 512\}; layer~2: \{64, 96, 128, 192, 256\}; layer~3: \{32, 48, 64, 96, 128\}), sorted in monotonically decreasing order for stability
-\end{itemize}
+\begin{table}[ht]
+\centering
+\caption{Hyperparameter Search Space}
+\begin{tabular}{ll}
+\hline
+\textbf{Hyperparameter} & \textbf{Search Space} \\
+\hline
+Hidden Dimensions & \{64, 96, 128, 192, 256, 384, 512\} \\
+Number of Layers & \{3, 4, 5, 6, 7\} \\
+Dropout Rate & [0.0, 0.5] \\
+Learning Rate & [1e-4, 1e-2] (log-uniform) \\
+Weight Decay & [1e-6, 1e-2] (log-uniform) \\
+Head Dimensions & 3 categorical presets \\
+\hline
+\end{tabular}
+\label{tab:search_space}
+\end{table}
 
 \textbf{Optimization Algorithms:} We compared seven HPO strategies:
 \begin{enumerate}
     \item Particle Swarm Optimization (PSO): population = 16
     \item Simulated Annealing (SA): $T_0=50$, cooling $\alpha=0.99$
-    \item Genetic Algorithm (GA): population = 16, mutation rate = 0.1
+    \item Genetic Algorithm (GA): population = 16, mutation = 0.1
     \item Artificial Bee Colony (ABC): colony size = 16, limit = 50
     \item Hill Climbing (HC): greedy local search
     \item Random Search: uniform sampling
-    \item Tree-structured Parzen Estimator (TPE): Optuna~\cite{optuna} with 10 startup random trials and median pruning
+    \item Tree-structured Parzen Estimator (TPE): Optuna with 10 startup random trials and median pruning
 \end{enumerate}
 
 We select the best configuration based on validation RMSE (regression) or validation AUC (classification) and evaluate once on the held-out test split.
 
-\noindent\textbf{HPO settings.} All metaheuristic algorithms were implemented via the NiaPy library~\cite{niapy}. We use population size 16 for PSO/ABC/GA, SA with $T_0=50$ and cooling $\alpha=0.99$, and Optuna TPE with 10 startup random trials and median pruning. All methods share the same search space to ensure fair comparison.
+\noindent\textbf{HPO settings.} We use population size 16 for PSO/ABC/GA, SA with $T_0=50$ and cooling $\alpha=0.99$, and Optuna TPE with 10 startup random trials and median pruning. All methods share the same search space (hidden dimension, number of layers, learning rate, weight decay, dropout, and MLP head dimensions) to ensure fair comparison.
 
 
 
 \subsubsection{Implementation}
 
-\textbf{Software:} Python $\ge$ 3.8, PyTorch $\ge$ 2.0, PyTorch Geometric~\cite{pyg} $\ge$ 2.3, RDKit $\ge$ 2022.9, PyTDC $\ge$ 1.0, NiaPy~\cite{niapy} $\ge$ 2.0, Optuna~\cite{optuna} $\ge$ 3.0, Transformers $\ge$ 4.30
+\textbf{Software:} Python $\ge$ 3.8, PyTorch $\ge$ 2.0, PyTorch Geometric $\ge$ 2.3, RDKit $\ge$ 2022.9, PyTDC $\ge$ 1.0, NiaPy $\ge$ 2.0 \cite{niapy}, Optuna $\ge$ 3.0, Transformers $\ge$ 4.30
 
-\textbf{Hardware:}
-\begin{itemize}
-    \item CPU: Intel Core i7-8700K @ 3.70\,GHz
-    \item RAM: 16.0\,GB
-    \item GPU: NVIDIA GeForce RTX 3060
-    \item Total experiment time: approximately 45 hours
-\end{itemize}
+\textbf{Hardware:} All experiments were conducted on a workstation equipped with an Intel Core i7-8700K CPU (3.70\,GHz), 16\,GB RAM, and an NVIDIA GeForce RTX 3060 GPU. The total experiment time across all HPO runs, foundation model evaluations, and multi-seed validation was approximately 45 hours.
 
 \subsubsection{Multi-Seed Validation}
-To quantify robustness, we retrain the selected best configuration per dataset across five random seeds. We report the mean and standard deviation of the test metric across seeds. This prevents conclusions based on a single favorable run and enables more reliable comparisons between HPO strategies.
+To quantify robustness, we retrain the selected best configuration per dataset across three seeds $[42, 43, 44]$. We report the mean and standard deviation of the test metric across seeds. This prevents conclusions based on a single favorable run and enables more reliable comparisons between HPO strategies.
 
 \subsubsection{Statistical Significance Testing}
-We compare HPO algorithms against Random Search using paired tests on the per-dataset results. For each comparison, we apply the Wilcoxon signed-rank test and additionally report effect sizes to capture practical significance beyond $p$-values.
+We compare HPO algorithms against Random Search using paired tests on the per-seed results. For each dataset, we apply the Wilcoxon signed-rank test between an algorithm and Random Search, and we additionally report effect sizes to capture practical significance beyond p-values.
 
 
-\subsection{Results}
+\section{Results}
 \label{results}
 \subsubsection{Hyperparameter Optimization Performance}
 \label{sec:hpo_performance}
@@ -296,7 +433,7 @@ We evaluated seven hyperparameter optimization algorithms across our benchmark o
 Since TPE is implemented via Optuna and reported as a dedicated benchmark in our framework,
 we summarize its standalone results separately for direct comparison with the best GNN runs.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering
 \caption{TPE benchmark results from Optuna (test split). RMSE $\downarrow$ for regression, AUC-ROC $\uparrow$ for classification.}
 \label{tab:tpe_results}
@@ -317,7 +454,7 @@ hERG & AUC-ROC $\uparrow$ & 0.772 \\
 
 \begin{table}[t]
 \centering
-\caption{HPO algorithm comparison across datasets within a 50-trial budget. Values show test metrics for each optimizer. Best per dataset in \textbf{bold}. TPE is implemented via Optuna and reported alongside NiaPy-based algorithms for completeness; standalone TPE results appear in Table~\ref{tab:tpe_results}.}
+\caption{HPO algorithm comparison across datasets. Values show test metrics for each optimizer. Best per dataset in \textbf{bold}. TPE is implemented via Optuna and reported alongside NiaPy-based algorithms for completeness; standalone TPE results appear in Table~\ref{tab:tpe_results}.}
 \label{tab:hpo_results}
 \scriptsize
 \begin{tabular}{lccccccc}
@@ -345,19 +482,19 @@ A small subset of sampled hyperparameter configurations led to unstable training
 
 \paragraph{Algorithm Performance Ranking}
 
-Across the four ADME regression datasets, no single algorithm consistently dominated all tasks, confirming that the optimal choice of HPO strategy is problem-dependent. PSO, ABC, and GA achieved the best performance on Half\_Life\_Obach (RMSE = 21.66), while Random Search excelled on Caco2\_Wang (RMSE = 0.0027) and Clearance\_Microsome\_AZ (RMSE = 38.75). TPE (Bayesian optimization) achieved the best overall result on Clearance\_Hepatocyte\_AZ (RMSE = 52.16), substantially outperforming the best NiaPy-based result (Random, RMSE = 68.22). Notably, Random Search, despite its simplicity, achieved the best NiaPy-based performance on 3 out of 4 regression tasks, demonstrating that sophisticated optimization is not always necessary.
+Across the four ADME regression datasets, no single algorithm consistently dominated all tasks, suggesting that the optimal choice of HPO strategy is problem-dependent. PSO, ABC, and GA achieved the best performance on Half\_Life\_Obach (RMSE = 21.66) while Random Search excelled on Caco2\_Wang (RMSE = 0.0027), Clearance\_Hepatocyte\_AZ (RMSE = 68.22), and Clearance\_Microsome\_AZ (RMSE = 38.75). TPE (Bayesian optimization) achieved the best standalone result on Clearance\_Hepatocyte\_AZ (RMSE = 52.16), though this used a simplified GNN variant (see Section~\ref{sec:tpe_benchmark}). Notably, Random Search, despite its simplicity, achieved the best NiaPy-based performance on 3 out of 4 regression tasks, demonstrating that sophisticated optimization is not always necessary.
 
 \noindent\textbf{Key insight: optimization behavior under scaffold split.}
-A central observation from our experiments is that scaffold-based evaluation changes the relative effectiveness of optimization strategies compared to random-split settings commonly reported in prior work. Under scaffold splits,
+A central observation from our experiments is that scaffold-based evaluation changes the relative effectiveness of optimization strategies compared to random split settings commonly reported in prior work. Under scaffold splits,
 the validation landscape becomes noisier and less smooth due to structural distribution shift, reducing the advantage of adaptive metaheuristic strategies. As a result, simpler approaches such as Random Search remain highly competitive,
 while population-based methods require larger budgets to consistently outperform. This suggests that previously reported optimizer superiority may partially arise
 from evaluation protocol choices rather than algorithmic advantages.
 
 \paragraph{Convergence Characteristics}
 
-Analysis of the optimization trajectories (Figure~\ref{fig:convergence}) reveals distinct behavioral patterns among the algorithms. PSO and ABC demonstrated rapid initial convergence, typically identifying near-optimal configurations within the first 10--15 trials out of 50 total. This aggressive exploration strategy proved particularly effective for smooth optimization landscapes like Caco-2 permeability. In contrast, SA exhibited more gradual convergence with consistent improvement across all trials, making it more robust for challenging tasks with many local optima, such as the clearance datasets.
+Analysis of the optimization trajectories (Figure~\ref{fig:convergence}) reveals distinct behavioral patterns among the algorithms. PSO and ABC demonstrated rapid initial convergence, typically identifying near-optimal configurations within the first 10–15 trials out of 50 total. This aggressive exploration strategy proved particularly effective for smooth optimization landscapes like Caco2 permeability. In contrast, SA exhibited more gradual convergence with consistent improvement across all trials, making it more robust for challenging tasks with many local optima, such as the clearance datasets.
 
-GA and HC showed inconsistent performance, occasionally achieving competitive results but often converging prematurely to suboptimal configurations. GA's underperformance may be attributed to the limited population size (16 individuals) and the fixed 50-trial budget, which may be insufficient for effective evolutionary search in a high-dimensional hyperparameter space.
+GA and HC showed inconsistent performance, occasionally achieving competitive results but often converging prematurely to suboptimal configurations. GA's underperformance may be attributed to the limited population size (16 individuals) and the fixed 50-trial budget, which may still be insufficient for effective evolutionary search in a high-dimensional hyperparameter space.
 
 
 \subsubsection{Dataset-Specific Performance Patterns}
@@ -365,14 +502,14 @@ GA and HC showed inconsistent performance, occasionally achieving competitive re
 
 Table~\ref{tab:best_results} summarizes the best performance achieved on each dataset, regardless of which HPO algorithm produced it.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering
-\caption{Best test-set performance per dataset across all HPO algorithms. Metrics from single best trial.}
+\caption{Best test set performance per dataset across all HPO algorithms. Metrics from single best trial.}
 \label{tab:best_results}
 \small
 \begin{tabular}{lcccc}
 \toprule
-\textbf{Dataset} & \textbf{Best Algo} & \textbf{RMSE / F1} & \textbf{$R^2$ / AUC} & \textbf{Time (s)} \\
+\textbf{Dataset} & \textbf{Best Algo} & \textbf{RMSE/F1} & \textbf{R²/AUC} & \textbf{Time (s)} \\
 \midrule
 \multicolumn{5}{l}{\emph{ADME Regression Tasks}} \\
 \midrule
@@ -389,86 +526,81 @@ hERG & ABC & 0.809 & 0.825 & 33.9 \\
 \end{tabular}
 \end{table}
 
-\textbf{ADME Regression Tasks.} Performance varied substantially across the four pharmacokinetic prediction tasks, reflecting fundamental differences in task difficulty and dataset characteristics:
+\textbf{ADME Regression Tasks.} Performance varied substantially across the four pharmacokinetic prediction tasks, reflecting fundamental differences in task difficulty and dataset characteristics.
 
-\begin{itemize}
-    \item \textbf{Caco-2 Permeability (Best: Random, $R^2 = 0.482$):} The moderate predictive performance on this well-established benchmark is consistent with prior studies using both traditional ML and deep learning approaches. The achievable $R^2$ of ${\sim}0.5$ likely represents a practical ceiling given that in vitro permeability measurements are inherently noisy and molecular structure alone cannot fully explain bidirectional transport.
+\paragraph{Caco-2 Permeability (Best: Random, R² = 0.482).} The moderate predictive performance on this well-established benchmark is consistent with prior studies using both traditional ML and deep learning approaches. The achievable R² of $\sim$0.5 likely represents a practical ceiling given that in vitro permeability measurements are inherently noisy and molecular structure alone cannot fully explain bidirectional transport.
 
-    \item \textbf{Half-Life Prediction (Best: PSO, $R^2 = 0.004$):} The extremely low $R^2$ reflects the multicausal nature of human pharmacokinetics. While molecular structure influences metabolic stability, elimination half-life is also determined by volume of distribution, protein binding, and individual patient variability---factors not encoded in SMILES strings.
+\paragraph{Half-Life Prediction (Best: PSO, R² = 0.004).} The extremely low R² reflects the multicausal nature of human pharmacokinetics. While molecular structure influences metabolic stability, elimination half-life is also determined by volume of distribution, protein binding, and individual patient variability—factors not encoded in SMILES strings.
 
-    \item \textbf{Clearance Tasks:} The negative $R^2$ on Hepatocyte clearance ($-1.019$) indicates the model performs worse than a mean predictor, suggesting either dataset-specific artifacts or intrinsic unpredictability. The Microsome task achieves marginal predictive power ($R^2 = 0.191$). These results highlight the limitations of structure-only models for complex metabolic processes. Notably, TPE (Bayesian optimization) achieved a substantially better RMSE of 52.16 on Clearance\_Hepatocyte (see Table~\ref{tab:tpe_results}), compared to the best NiaPy result of 68.22, though the prediction remains below the mean-predictor baseline.
-\end{itemize}
+\paragraph{Clearance Tasks.} The negative R² on Hepatocyte clearance ($-1.019$) indicates the model performs worse than a mean predictor, suggesting either dataset-specific artifacts or intrinsic unpredictability. The Microsome task achieves marginal predictive power (R² = 0.191). These results highlight the limitations of structure-only models for complex metabolic processes.
 
-\textbf{Toxicity Classification Tasks.} The classification tasks exhibited more robust performance, with all HPO algorithms achieving AUC-ROC $>$ 0.65:
+\textbf{Toxicity Classification Tasks.} The classification tasks exhibited more robust performance, with all HPO algorithms achieving AUC-ROC $>$ 0.65.
 
-\begin{itemize}
-    \item \textbf{hERG Cardiotoxicity (Best: ABC, F1 = 0.809, AUC = 0.825):} The strong performance demonstrates that GNNs can effectively learn structural alerts for hERG channel blockade, a critical safety liability. The high F1 score indicates balanced sensitivity and specificity, making this model suitable for early-stage virtual screening to deprioritize high-risk compounds.
+\paragraph{hERG Cardiotoxicity (Best: ABC, F1 = 0.809, AUC = 0.825).} The strong performance demonstrates that GNNs can effectively learn structural alerts for hERG channel blockade, a critical safety liability. The high F1 score indicates balanced sensitivity and specificity, making this model suitable for early-stage virtual screening to deprioritize high-risk compounds.
 
-    \item \textbf{Tox21 Androgen Receptor (Best: SA, F1 = 0.455, AUC = 0.742):} The moderate F1 reflects extreme class imbalance (3.5\% positive rate). While the model achieves 96.2\% accuracy, this is largely driven by correct prediction of the majority (non-toxic) class. The AUC of 0.742 indicates reasonable discriminative ability, but the low F1 means many toxic compounds would be missed in a screening campaign.
-\end{itemize}
+\paragraph{Tox21 Androgen Receptor (Best: SA, F1 = 0.455, AUC = 0.742).} The moderate F1 reflects extreme class imbalance (3.5\% positive rate). While the model achieves 96.2\% accuracy, this is largely driven by correct prediction of the majority (non-toxic) class. The AUC of 0.742 indicates reasonable discriminative ability, but low F1 means many toxic compounds would be missed in screening.
 
 \subsubsection{Optimization Algorithm Comparison}
 \label{sec:optimizer_comparison}
 
-Figure~\ref{fig:algorithm_performance} compares the seven HPO algorithms across all datasets, showing test RMSE/F1, $R^2$/AUC, and training time. The visualization reveals that PSO and Random Search achieved the best balance between performance and computational efficiency.
+Figure~\ref{fig:algorithm_performance} compares the seven HPO algorithms across all datasets, showing test RMSE/F1, R$^2$/AUC, and training time. The visualization reveals that PSO and Random Search achieved the best balance between performance and computational efficiency.
 
 \begin{figure*}[t]
     \centering
     \includegraphics[width=0.95\textwidth]{01_algorithm_performance.png}
-    \caption{Comprehensive HPO algorithm performance comparison across ADME datasets. (A) Test RMSE by algorithm and dataset, (B) Test $R^2$ scores, (C) Training time comparison, (D) Performance vs.\ training time trade-off. PSO and Random Search consistently achieve strong performance with reasonable computational cost.}
+    \caption{Comprehensive HPO algorithm performance comparison across ADME datasets. (A) Test RMSE by algorithm and dataset, (B) Test R² scores, (C) Training time comparison, (D) Performance vs. training time tradeoff. PSO and Random Search consistently achieve strong performance with reasonable computational cost.}
     \label{fig:algorithm_performance}
 \end{figure*}
 
-\textbf{Algorithm Analysis:}
-\begin{itemize}
-    \item \textbf{PSO consistently strong:} Particle Swarm Optimization achieved best or near-best performance on Half-Life and was competitive on other datasets, with reasonable training times.
-
-    \item \textbf{Random Search surprisingly effective:} Despite being the simplest baseline, Random Search won on two regression datasets (Caco2, Clearance\_Microsome) among the NiaPy-based algorithms. This suggests that for some tasks, the hyperparameter space is relatively smooth with few local optima.
-
-    \item \textbf{GA and ABC show mixed results:} Genetic Algorithm and Artificial Bee Colony achieved competitive but not best performance on most tasks, likely due to population size (16 individuals) and limited trials (50), which may prevent these population-based methods from fully exploring the space.
-
-    \item \textbf{SA excels on classification:} Simulated Annealing achieved best performance on the Tox21 toxicity task (AUC = 0.742), where its gradual cooling schedule helps escape local optima.
-\end{itemize}
+\paragraph{Algorithm Analysis.}
+PSO proved consistently strong, achieving best or near-best performance on Half-Life and remaining competitive on other datasets with reasonable training times. Random Search was surprisingly effective: despite being the simplest baseline, it won on 3 regression datasets (Caco2, Clearance\_Hepatocyte, Clearance\_Microsome) among the NiaPy-based algorithms, suggesting that for some tasks the hyperparameter space is relatively smooth with few local optima. GA and ABC showed mixed results, achieving competitive but not best performance on most tasks, likely due to population size (16 individuals) and limited trials (50), which may prevent these population-based methods from fully exploring the space. SA excelled on classification, achieving best performance on the Tox21 toxicity task (AUC = 0.742), where its gradual cooling schedule helps escape local optima.
 
 \subsubsection{Convergence Analysis}
 \label{sec:convergence}
 
-Figure~\ref{fig:convergence} shows validation performance versus HPO trial number for representative datasets (Half\_Life, Tox21). PSO and ABC exhibit faster convergence, reaching near-optimal performance after approximately 10--15 trials, while Random Search shows gradual improvement without a clear plateau. This demonstrates that even with a 50-trial budget, metaheuristic optimization provides meaningful gains over random search on some tasks.
+Figure~\ref{fig:convergence} shows validation performance versus HPO trial number for representative datasets (Half\_Life, Tox21). PSO and ABC exhibit faster convergence, reaching near-optimal performance after approximately 10-15 trials, while Random Search shows gradual improvement without clear plateau. This demonstrates that even with a 50-trial budget, metaheuristic optimization provides meaningful gains over random search.
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.9\textwidth]{hpo_convergence_curves.png}
+    \includegraphics[width=0.9\textwidth]{images/hpo_convergence_curves.png}
     \caption{Detailed convergence trajectories for HPO algorithms on Half\_Life\_Obach and Tox21 datasets, showing trial-by-trial progression of validation performance.}
     \label{fig:convergence}
 \end{figure}
 
-The convergence patterns suggest different optimization strategies:
-\begin{itemize}
-    \item \textbf{PSO:} Initial rapid exploration (trials 1--10) followed by focused exploitation around best regions (trials 11--50)
-    \item \textbf{SA:} Gradual temperature decrease enables smooth transition from exploration to exploitation
-    \item \textbf{Random:} Uniform sampling throughout, no adaptive focus on promising regions
-\end{itemize}
+The convergence patterns suggest different optimization strategies, summarized in Table~\ref{tab:convergence_strategies}.
+
+\begin{table}[htbp]
+\centering
+\caption{Convergence behavior of representative HPO algorithms.}
+\label{tab:convergence_strategies}
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Algorithm} & \textbf{Early phase (trials 1--10)} & \textbf{Late phase (trials 11--50)} \\
+\midrule
+PSO & Rapid exploration & Focused exploitation around best regions \\
+SA & Accepts suboptimal moves (high $T$) & Conservative refinement (low $T$) \\
+Random & Uniform sampling & Uniform sampling (no adaptation) \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsubsection{Classification Performance Detail}
 \label{sec:classification_detail}
 
 For toxicity prediction tasks, we provide additional analysis beyond aggregate metrics:
 
-\textbf{ROC Curves.}
-All HPO algorithms achieve AUC-ROC $>$ 0.65 on both hERG and Tox21, demonstrating robust discriminative ability. hERG shows better class separability (best AUC = 0.825) than Tox21 (best AUC = 0.742), likely due to more balanced class distribution.
+\textbf{ROC Curves}
+All HPO algorithms achieve AUC-ROC $>$ 0.65 on both hERG and Tox21, demonstrating robust discriminative ability. hERG shows better class separability (best AUC=0.825) than Tox21 (best AUC=0.742), likely due to more balanced class distribution.
 
 
-\textbf{Confusion Matrices (Figure~\ref{fig:confusion_matrices}):}
-\begin{itemize}
-    \item \textbf{Tox21:} Best model (SA) achieves F1 = 0.455 despite 96.2\% accuracy, reflecting severe class imbalance (3.5\% positive). The model is biased toward the majority (non-toxic) class, which is acceptable for early-stage screening but means some toxic compounds are missed.
-
-    \item \textbf{hERG:} Best model (ABC) achieves approximately 81\% F1 score with balanced performance across both classes. High sensitivity is clinically desirable as it minimizes false negatives (missing potentially cardiotoxic compounds).
-\end{itemize}
+\textbf{Confusion Matrices (Figure~\ref{fig:confusion_matrices}).}
+On hERG, the best model (ABC) achieves approximately 81\% F1 score with balanced performance across both classes. High sensitivity is clinically desirable as it minimizes false negatives (missing potentially cardiotoxic compounds). On Tox21, the best model (SA) achieves F1 = 0.455 despite 96.2\% accuracy, reflecting severe class imbalance (3.5\% positive). The model is biased toward the majority (non-toxic) class, which is acceptable for early-stage screening but means some toxic compounds are missed.
 
 \begin{figure*}[t]
     \centering
-    \includegraphics[width=\textwidth]{confusion_matrices.png}
-    \caption{Confusion matrices for best-performing models on toxicity tasks. (Left) Tox21 shows bias toward the majority class due to extreme imbalance (SA algorithm, F1 = 0.455, 3.5\% positive rate). (Right) hERG shows balanced performance (ABC algorithm, F1 = 0.809).}
+    \includegraphics[width=\textwidth]{images/confusion_matrices.png}
+    \caption{Confusion matrices for best-performing models on toxicity tasks. (A) hERG shows balanced performance (ABC algorithm, F1=0.809). (B) Tox21 shows bias toward majority class due to extreme imbalance (SA algorithm, F1=0.455, 3.5\% positive rate).}
     \label{fig:confusion_matrices}
 \end{figure*}
 
@@ -480,7 +612,7 @@ Figure~\ref{fig:foundation_comparison} presents a critical comparison between ou
 \begin{figure*}[t]
     \centering
     \includegraphics[width=0.95\textwidth]{gnn_vs_foundation_comparison.png}
-    \caption{Comprehensive comparison of GNN (with HPO) against foundation model baselines across all datasets. (A) ADME regression RMSE, (B) ADME regression $R^2$, (C) Toxicity AUC-ROC, (D) Toxicity F1 scores. The GNN is competitive or superior on most tasks; notably, the GNN outperforms all baselines on Clearance\_Microsome and achieves the highest AUC on both classification tasks.}
+    \caption{Comprehensive comparison of GNN (with HPO) against foundation model baselines across all datasets. (A) ADME regression RMSE, (B) ADME regression R², (C) Toxicity AUC-ROC, (D) Toxicity F1 scores. GNN consistently outperforms frozen foundation models on most tasks.}
     \label{fig:foundation_comparison}
 \end{figure*}
 
@@ -491,123 +623,54 @@ Figure~\ref{fig:foundation_comparison} presents a critical comparison between ou
     \label{fig:foundation_ranking}
 \end{figure}
 
-\textbf{GNN Superiority on Toxicity Tasks.} The GNN-Best configuration (selected via HPO) consistently outperformed foundation model baselines on both toxicity classification tasks. On hERG, the GNN achieved AUC = 0.825 compared to ChemBERTa's 0.770 and MolCLR's 0.504, representing a meaningful improvement. The advantage demonstrates that the GNN's ability to learn task-specific graph convolution patterns is particularly valuable for toxicity endpoints.
+\textbf{GNN Superiority on Toxicity Tasks.} The GNN-Best configuration (selected via HPO) consistently outperformed foundation model baselines on both toxicity classification tasks. On hERG, the GNN achieved AUC = 0.825 compared to ChemBERTa's lower performance, representing a meaningful improvement. The advantage demonstrates that GNNs' ability to learn task-specific graph convolution patterns is particularly valuable for toxicity endpoints.
 
-\textbf{Performance Gap on Permeability.} A substantial gap exists on Caco-2 permeability between the optimized GNN (RMSE = 0.0027) and frozen foundation models (e.g., Morgan-FP RMSE = 0.614). This difference is partially explained by our experimental setup: foundation models were used as frozen encoders with fixed MLP predictors, whereas the GNN architecture was optimized across multiple layers, hidden dimensions, and learning rates. However, even accounting for this advantage, the result suggests that \textit{explicit molecular graph structure is critical for permeability prediction}, a task that depends on molecular topology and hydrogen bonding patterns.
+\textbf{Performance Gap on Permeability.} A substantial gap exists on Caco2 permeability between optimized GNN (RMSE = 0.0027) and frozen foundation models. This difference is partially explained by our experimental setup: foundation models were used as frozen encoders with fixed MLP predictors, whereas the GNN architecture was optimized across multiple layers, hidden dimensions, and learning rates. However, even accounting for this advantage, the result suggests that \textit{explicit molecular graph structure is critical for permeability prediction}, a task that depends on molecular topology and hydrogen bonding patterns.
 
-\textbf{Scaffold-Split Sensitivity of ChemBERTa.} The most striking result was the performance of ChemBERTa-FT on Tox21: it achieved a high validation AUC of 0.82 but its test AUC dropped to 0.46, indicating catastrophic overfitting under the scaffold split. The GNN approach, trained end-to-end on molecular graphs, proved more robust to this distribution shift (test AUC = 0.742 with consistent validation performance).
-
-\textbf{Limitations of Frozen Foundation Models.} Our results indicate that using pretrained language models as fixed feature extractors, a computationally efficient strategy, may sacrifice substantial performance compared to end-to-end training. ChemBERTa was pretrained on a large SMILES corpus from the ZINC database, learning general chemical syntax and semantics. However, ADMET prediction requires specialized representations that may not align with masked language modeling objectives.
-
-
-\subsubsection{Multi-Seed Validation}
-\label{sec:multiseed}
-
-To assess the robustness of our results, we retrained the best hyperparameter configuration for each dataset using five different random seeds. Figure~\ref{fig:multiseed_boxplots} shows the distribution of test-set performance across seeds and algorithms. Performance was generally stable for well-behaved tasks, though the clearance datasets exhibited higher variance.
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=\linewidth]{multi_seed_boxplots.png}
-    \caption{Multi-seed validation results ($n=5$). Boxplots show the distribution of test performance across five random seeds for each HPO algorithm on each dataset. TPE and HC tend to produce the most consistent results across seeds.}
-    \label{fig:multiseed_boxplots}
-\end{figure}
-
-\subsubsection{Parameter Sensitivity}
-
-Figure~\ref{fig:param_sensitivity} presents a heatmap of the correlation between hyperparameter values and validation performance for two representative datasets (hERG and Caco2\_Wang). The number of GNN layers showed the strongest positive correlation with performance on hERG, while learning rate and weight decay had a moderate negative correlation on Caco2\_Wang, indicating that smaller values of these parameters are preferred for that task.
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=\linewidth]{param_sensitivity_heatmap.png}
-    \caption{Hyperparameter sensitivity analysis showing the correlation between hyperparameter values and validation score for hERG (top) and Caco2\_Wang (bottom). Positive correlation (red) indicates that larger parameter values improve performance; negative correlation (blue) indicates the opposite.}
-    \label{fig:param_sensitivity}
-\end{figure}
-
-\subsubsection{Statistical Significance}
-
-A Wilcoxon signed-rank test (Table~\ref{tab:significance}) revealed that no metaheuristic algorithm achieved a statistically significant improvement over Random Search across all six datasets ($p > 0.05$ in all cases). This reinforces the finding that Random Search is a competitive baseline, and the choice of HPO algorithm should be guided by the specific task rather than a general expectation of superiority.
-
-\begin{table}[h!]
-\centering
-\caption{Statistical significance of HPO algorithms vs.\ Random Search (Wilcoxon signed-rank test, $n=6$ datasets). W/T/L denotes wins, ties, and losses relative to Random Search.}
-\label{tab:significance}
-\small
-\begin{tabular}{lcccc}
-\toprule
-\textbf{Algorithm} & \textbf{W/T/L} & \textbf{$p$-value} & \textbf{Effect ($r$)} & \textbf{Interpretation} \\
-\midrule
-PSO & 4/0/2 & 0.844 & 0.57 & Not significant \\
-ABC & 4/0/2 & 0.844 & 0.57 & Not significant \\
-GA & 4/0/2 & 0.844 & 0.57 & Not significant \\
-SA & 5/0/1 & 0.156 & 0.86 & Not significant \\
-HC & 3/0/3 & 0.688 & 0.62 & Not significant \\
-\bottomrule
-\end{tabular}
-\end{table}
+\textbf{Limitations of Frozen Foundation Models.} Our results indicate that using pretrained language models as fixed feature extractors, a computationally efficient strategy, may sacrifice substantial performance compared to end-to-end fine-tuning. ChemBERTa was pretrained on a large SMILES corpus from the ZINC database, learning general chemical syntax and semantics. However, ADMET prediction requires specialized representations that may not align with masked language modeling objectives.
 
 
 \section{Conclusion}
 \label{sec:conclusion}
 
-This work presents a comprehensive benchmarking framework for evaluating Graph Neural Networks on molecular property prediction tasks, with systematic hyperparameter optimization across six diverse ADME and toxicity datasets. Our investigation of seven optimization algorithms---Particle Swarm Optimization, Simulated Annealing, Genetic Algorithm, Artificial Bee Colony, Hill Climbing, Random Search, and Tree-structured Parzen Estimator---reveals important insights for computational drug discovery research.
+This work presents a comprehensive benchmarking framework for evaluating Graph Neural Networks on molecular property prediction tasks, with systematic hyperparameter optimization across six diverse ADME and toxicity datasets. Our investigation of seven optimization algorithms—Particle Swarm Optimization, Simulated Annealing, Genetic Algorithm, Artificial Bee Colony, Hill Climbing, Random Search, and Tree-structured Parzen Estimator—reveals important insights for computational drug discovery research.
 
 
 \subsection{Key Findings}
 
-\textbf{No universal optimizer exists.} Our results demonstrate that no single hyperparameter optimization algorithm dominates across all molecular property prediction tasks. PSO and Random Search achieved the best balance between performance and computational efficiency, with PSO excelling on pharmacokinetic tasks (Half-Life), while Random Search won on two regression datasets (Caco2 and Clearance\_Microsome). TPE excelled on the complex Clearance\_Hepatocyte task, and metaheuristic algorithms (SA, ABC) won on the toxicity classification tasks. This task-dependent performance suggests that practitioners should evaluate multiple optimization strategies rather than relying on a single approach.
+\textbf{No universal optimizer exists.} Our results demonstrate that no single hyperparameter optimization algorithm dominates across all molecular property prediction tasks. PSO and Random Search achieved the best balance between performance and computational efficiency, with PSO excelling on pharmacokinetic tasks (Half-Life), while Random Search won on three regression datasets (Caco2, Clearance\_Hepatocyte, and Clearance\_Microsome). TPE excelled on the complex Clearance\_Hepatocyte task, and metaheuristic algorithms (SA, ABC) won on the toxicity classification tasks. This task-dependent performance suggests that practitioners should evaluate multiple optimization strategies rather than relying on a single approach.
 
-\textbf{Dataset difficulty varies dramatically.} The benchmarked tasks exhibited vastly different levels of predictability from molecular structure alone. Caco-2 permeability achieved moderate performance ($R^2 = 0.482$), demonstrating that in vitro transport can be partially predicted from graph structure. In contrast, half-life prediction ($R^2 = 0.004$) and hepatocyte clearance ($R^2 = -1.019$) proved nearly impossible, highlighting fundamental limitations of structure-only models for complex pharmacokinetic processes influenced by enzyme kinetics, protein binding, and individual patient variation.
+\textbf{Dataset difficulty varies dramatically.} The benchmarked tasks exhibited vastly different levels of predictability from molecular structure alone. Caco-2 permeability achieved moderate performance (R² = 0.482), demonstrating that in vitro transport can be partially predicted from graph structure. In contrast, half-life prediction (R² = 0.004) and hepatocyte clearance (R² = -1.019) proved nearly impossible, highlighting fundamental limitations of structure-only models for complex pharmacokinetic processes influenced by enzyme kinetics, protein binding, and individual patient variation.
 
 \textbf{Toxicity classification shows promise.} Both toxicity endpoints achieved strong discriminative performance (hERG AUC = 0.825, Tox21 AUC = 0.742), indicating that GNNs can effectively learn structural alerts for safety liabilities. The high F1 score on hERG (0.809) demonstrates practical utility for virtual screening to identify cardiotoxic compounds early in drug development, potentially reducing late-stage attrition.
 
-\textbf{Simple methods remain competitive.} Random Search, despite being the simplest baseline, achieved best or near-best performance on half of the datasets. No metaheuristic algorithm achieved a statistically significant improvement over Random Search across all tasks (Wilcoxon signed-rank test, $p > 0.05$). This finding challenges the assumption that sophisticated metaheuristic optimization is always necessary. For smooth hyperparameter landscapes with a 50-trial optimization budget, random exploration can be as effective as adaptive strategies.
+\textbf{Simple methods remain competitive.} Random Search, despite being the simplest baseline, achieved best or near-best performance on half of the datasets. No metaheuristic algorithm achieved a statistically significant improvement over Random Search across all tasks. This finding challenges the assumption that sophisticated metaheuristic optimization is always necessary. For smooth hyperparameter landscapes with a 50-trial optimization budget, random exploration can be as effective as adaptive strategies. However, metaheuristics like PSO and SA demonstrated more consistent performance across diverse tasks.
 
-\textbf{Foundation models require careful evaluation under scaffold split.} Our comparison revealed that task-specific GNN architectures with systematic HPO can match or exceed pretrained models used as fixed feature extractors. More critically, ChemBERTa-FT exhibited severe scaffold-split sensitivity on Tox21 (validation AUC = 0.82, test AUC = 0.46), demonstrating that strong validation performance does not guarantee test-set generalization when the evaluation protocol induces distribution shift.
+\textbf{Foundation models require careful tuning.} Our comparison between optimized GNNs and frozen foundation models (ChemBERTa, Morgan fingerprints) revealed that task-specific GNN architectures with systematic HPO can match or exceed pretrained models used as fixed feature extractors. However, the comparison reflects a practical resource-constrained setting: the GNN is optimized with a full HPO budget, while pretrained baselines are evaluated with a limited tuning protocol commonly used in practice.
 
 
 \subsection{Limitations and Future Work}
 
-\textbf{Limited HPO budget.} Our study uses a 50-trial budget per algorithm, though larger budgets may further improve population-based methods that benefit from extended exploration.
+\textbf{Limited HPO budget.} Our study uses a 50-trial budget per algorithm, though larger budgets may further improve population-based methods.
 
-\textbf{Single GNN architecture.} The GNN backbone was fixed to GraphConv layers; evaluating alternative message-passing operators (e.g., GATConv, GINConv) could yield different results and alter the relative ranking of HPO algorithms.
 
-\textbf{Frozen foundation models.} Our comparison used pretrained encoders primarily as frozen feature extractors rather than performing full end-to-end fine-tuning with equal HPO budgets. However, even with limited fine-tuning, ChemBERTa exhibited severe scaffold-split sensitivity (Tox21: validation AUC = 0.82, test AUC = 0.46), suggesting fundamental limitations beyond hyperparameter choice.
+\textbf{Frozen foundation models.} Our comparison used ChemBERTa as a frozen
+encoder rather than fine-tuning transformer weights, which sacrifices
+substantial performance. However, even with equal HPO budgets, ChemBERTa
+exhibited severe scaffold split sensitivity (Tox21: Val AUC=0.82, Test AUC=0.46), suggesting fundamental limitations beyond hyperparameter choice.
 
-\textbf{Multi-seed HPO.} While we report multi-seed retraining of the best configuration, future work should evaluate multi-seed HPO runs to quantify optimizer stability across different random initializations.
+While we report multi-seed retraining, future work should evaluate multi-seed HPO runs to quantify optimizer stability.
+
 
 \textbf{Class imbalance strategies.} The Tox21 dataset suffered from extreme class imbalance (3.5\% positive), resulting in poor minority class recall despite high accuracy. Future studies should explore resampling techniques (SMOTE for graphs), class-weighted loss functions, and focal loss to improve sensitivity on rare toxic compounds.
 
-\textbf{Molecular featurization alternatives.} This study used standard atom features (atomic number, degree, formal charge, hybridization, aromaticity, ring membership, hydrogen count, atomic mass). Incorporating 3D conformer information, learned atomic embeddings, or quantum chemical descriptors may improve performance on physicochemical tasks like permeability and clearance.
+\textbf{Molecular featurization alternatives.} This study used standard atom and bond features (atomic number, chirality, bond type, aromaticity). Incorporating 3D conformer information, learned atomic embeddings, or quantum chemical descriptors may improve performance on physicochemical tasks like permeability and clearance.
 
-\subsection{Practical Recommendations}
-
-For researchers applying GNNs to molecular property prediction, we recommend:
-
-\begin{enumerate}
-    \item \textbf{Start with Random Search or PSO} for initial hyperparameter tuning (20--50 trials), which provide good performance with minimal setup complexity.
-
-    \item \textbf{Use Simulated Annealing} for challenging classification tasks with suspected local optima, such as toxicity prediction with class imbalance.
-
-    \item \textbf{Consider TPE (Bayesian optimization)} for complex regression tasks where sample efficiency matters, as demonstrated by its strong result on Clearance\_Hepatocyte.
-
-    \item \textbf{Invest HPO effort based on task difficulty.} High-quality datasets with strong signal (e.g., hERG toxicity) benefit substantially from optimization, while inherently noisy tasks (e.g., clearance) show limited improvement regardless of hyperparameter tuning.
-
-    \item \textbf{Always use scaffold-based splitting} for ADMET evaluation to avoid inflated performance estimates. Random splits can mask overfitting, particularly for SMILES-based models.
-
-    \item \textbf{Consider computational constraints.} For researchers without GPU access, optimized lightweight GNNs (3--5 layers, 256--512 hidden dimensions) can match frozen foundation models while training in minutes on CPU.
-
-    \item \textbf{Report negative results honestly.} Our poor performance on clearance tasks ($R^2 < 0$) is scientifically valuable, indicating that structural information alone is insufficient and motivating integration of assay-specific metadata.
-\end{enumerate}
-
-\subsection{Broader Impact}
-
-By providing a reproducible benchmarking framework with systematic HPO, this work enables fairer comparisons of molecular GNN architectures and accelerates method development in computational drug discovery. Our honest reporting of failure cases (negative $R^2$ on clearance) helps calibrate community expectations about what molecular structure alone can predict, guiding researchers toward appropriate use cases and highlighting where additional data modalities (gene expression, metabolomics, clinical covariates) are essential.
-
-The demonstrated effectiveness of GNNs for toxicity prediction has immediate practical value for pharmaceutical research, enabling rapid virtual screening of compound libraries to prioritize safe candidates and reduce animal testing. As computational methods mature, they promise to accelerate drug discovery timelines and reduce development costs, ultimately benefiting patients through faster delivery of new therapeutics.
 
 \section{Supplementary Materials}
-The code for this paper with all models, algorithms, figures, and results can be found on the GitHub repository: \url{https://github.com/NitramVonemats/MANU_Project/tree/main}.
+The code for this paper  with all models and algorithms, as well as figures and charts can be found on the GitHub repository \url{https://github.com/NitramVonemats/MANU_Project/tree/main}.
 
-\printbibliography
+\bibliographystyle{plain}
+\bibliography{refs}
 
 \end{document}
