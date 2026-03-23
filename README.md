@@ -7,7 +7,7 @@ Systematic HPO Benchmark for Molecular GNNs
 [![PyG](https://img.shields.io/badge/PyG-2.4+-orange.svg)](https://pytorch-geometric.readthedocs.io/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> **Authors:** Martin, Mila, Adrian, Viktorija, Ilinka
+> **Authors:** Martin, Mila, Viktorija, Ilinka
 > **Paper:** [`paper_1/main.tex`](paper_1/main.tex)
 > **Target journal:** Bioinformatics
 
