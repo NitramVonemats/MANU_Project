@@ -1,4 +1,4 @@
-# MANU -- Systematic HPO Benchmark for Molecular GNNs
+Systematic HPO Benchmark for Molecular GNNs
 
 **Framework for Benchmarking and Optimization of Small Molecule Foundation Models for ADMET**
 
