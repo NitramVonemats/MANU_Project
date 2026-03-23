@@ -15,7 +15,7 @@ Systematic HPO Benchmark for Molecular GNNs
 
 ## Overview
 
-MANU is a reproducible benchmarking framework that systematically evaluates **seven hyperparameter optimization (HPO) strategies** for Graph Neural Networks (GNNs) on **six ADMET datasets** from the Therapeutics Data Commons (TDC). It additionally compares optimized GNNs against frozen foundation model baselines (ChemBERTa, MolCLR, Morgan-FP, MolE-FP), and provides multi-seed statistical validation with confidence intervals.
+Systematic HPO Benchmark for Molecular GNNs is a reproducible benchmarking framework that systematically evaluates **seven hyperparameter optimization (HPO) strategies** for Graph Neural Networks (GNNs) on **six ADMET datasets** from the Therapeutics Data Commons (TDC). It additionally compares optimized GNNs against frozen foundation model baselines (ChemBERTa, MolCLR, Morgan-FP, MolE-FP), and provides multi-seed statistical validation with confidence intervals.
 
 The framework answers two core questions:
 1. **Which HPO algorithm should practitioners choose** for GNN-based molecular property prediction under scaffold-split evaluation?
