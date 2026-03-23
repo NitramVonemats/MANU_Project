@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering
+\caption{Multi-seed validation results (seeds 42, 43, 44). Shows mean $\pm$ std across 3 random initializations with identical scaffold splits.}
+\label{tab:multiseed}
+\small
+\begin{tabular}{lccc}
+\toprule
+\textbf{Dataset} & \textbf{Task} & \textbf{Primary Metric} & \textbf{Mean $\pm$ Std} \\
+\midrule
+Caco2\_Wang & Regre. & RMSE & 0.0030 ± 0.0003 \\
+Half\_Life\_Obach & Regre. & RMSE & 21.0456 ± 1.8118 \\
+Clearance\_Hepatocyte\_AZ & Regre. & RMSE & 96.8779 ± 76.1170 \\
+Clearance\_Microsome\_AZ & Regre. & RMSE & 39.8527 ± 1.3893 \\
+tox21 & Class. & F1 & 0.4730 ± 0.0337 \\
+herg & Class. & F1 & 0.8555 ± 0.0244 \\
+\bottomrule
+\end{tabular}
+\end{table}

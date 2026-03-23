@@ -1,0 +1,23 @@
+\begin{table}[t]
+\centering
+\caption{HPO algorithm comparison across datasets. Values show test metrics for each optimizer. Best per dataset in \textbf{bold}.}
+\label{tab:hpo_results}
+\scriptsize
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Dataset} & \textbf{PSO} & \textbf{ABC} & \textbf{GA} & \textbf{SA} & \textbf{HC} & \textbf{Random} \\
+\midrule
+\multicolumn{7}{l}{\emph{Regression (RMSE $\downarrow$)}} \\
+\midrule
+Caco2\_Wang & \textbf{0.0026} & \textbf{0.0026} & \textbf{0.0026} & 0.0029 & 0.0030 & 0.0030 \\
+Clearance\_Hepatocyte\_AZ & 54.4027 & 54.4027 & 54.4027 & \textbf{50.2916} & 88.3350 & 59.6712 \\
+Clearance\_Microsome\_AZ & 614.2775 & 614.2775 & 614.2775 & \textbf{40.8605} & 614.2775 & 125.8442 \\
+Half\_Life\_Obach & \textbf{20.3678} & \textbf{20.3678} & \textbf{20.3678} & 20.9078 & 21.3228 & 22.2490 \\
+\midrule
+\multicolumn{7}{l}{\emph{Classification (F1 $\uparrow$)}} \\
+\midrule
+herg & 0.8571 & 0.8571 & 0.8571 & 0.8586 & \textbf{0.8844} & 0.8333 \\
+tox21 & 0.4632 & 0.4632 & 0.4632 & 0.3495 & 0.5000 & \textbf{0.5306} \\
+\bottomrule
+\end{tabular}
+\end{table}

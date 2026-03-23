@@ -1,108 +1,100 @@
-# MANU — Systematic HPO Benchmark for Molecular GNNs
+# MANU -- Systematic HPO Benchmark for Molecular GNNs
 
-**Systematic Hyperparameter Optimization for Molecular Property Prediction with Graph Neural Networks**
+**Framework for Benchmarking and Optimization of Small Molecule Foundation Models for ADMET**
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
+[![PyG](https://img.shields.io/badge/PyG-2.4+-orange.svg)](https://pytorch-geometric.readthedocs.io/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+> **Authors:** Martin, Mila, Adrian, Viktorija, Ilinka
+> **Paper:** [`paper_1/main.tex`](paper_1/main.tex)
+> **Target journal:** Bioinformatics
 
 ---
 
 ## Overview
 
-A comprehensive benchmark comparing six metaheuristic HPO algorithms and TPE (Bayesian optimization) for GNN-based ADMET property prediction across six datasets from the Therapeutics Data Commons (TDC). Includes comparisons with foundation models (ChemBERTa, MolCLR) and multi-seed statistical validation.
+MANU is a reproducible benchmarking framework that systematically evaluates **seven hyperparameter optimization (HPO) strategies** for Graph Neural Networks (GNNs) on **six ADMET datasets** from the Therapeutics Data Commons (TDC). It additionally compares optimized GNNs against frozen foundation model baselines (ChemBERTa, MolCLR, Morgan-FP, MolE-FP), and provides multi-seed statistical validation with confidence intervals.
+
+The framework answers two core questions:
+1. **Which HPO algorithm should practitioners choose** for GNN-based molecular property prediction under scaffold-split evaluation?
+2. **Can task-specific GNNs with systematic HPO match or exceed frozen pretrained foundation models?**
 
 ### Key Statistics
 
 | Metric | Value |
 |--------|-------|
-| **Datasets** | 6 (4 ADME + 2 Toxicity) |
-| **Total Molecules** | 11,805 |
-| **HPO Algorithms** | 7 (Random, PSO, ABC, GA, SA, HC, TPE) |
-| **Trials per Run** | 50 |
-| **Total HPO Runs** | 42 |
-| **Total Model Evaluations** | 2,100 |
-| **Multi-Seed Validation** | 5 seeds per dataset |
-| **Foundation Models** | ChemBERTa, MolCLR, Morgan-FP, MolE-FP |
+| **Datasets** | 6 (4 ADME regression + 2 Toxicity classification) |
+| **Total molecules** | 11,805 |
+| **HPO algorithms** | 7 (Random, PSO, ABC, GA, SA, HC, TPE) |
+| **Trials per run** | 50 |
+| **Total HPO runs** | 42 (6 datasets x 7 algorithms) |
+| **Total model evaluations** | 2,100+ |
+| **Multi-seed validation** | 5 seeds per dataset |
+| **Foundation model baselines** | 4 (ChemBERTa, MolCLR, Morgan-FP, MolE-FP) |
+| **GNN backbone** | GCN (GraphConv) |
+| **Evaluation protocol** | Scaffold split (Bemis-Murcko, 80/10/10) |
+| **Hardware** | NVIDIA RTX 3060, i7-8700K, 16 GB RAM |
+| **Total compute** | ~45 hours |
 
 ---
 
 ## Key Findings
 
-1. **Random Search is a strong baseline for regression** — Best NiaPy algorithm on 3/4 ADME regression datasets (Caco2, Clearance_Hepatocyte, Clearance_Microsome)
-2. **PSO/ABC/GA converge to identical solutions on Half_Life** — All three achieve RMSE = 21.66, suggesting convergence to the same hyperparameter configuration
-3. **Metaheuristic algorithms excel on classification** — SA wins on Tox21 (AUC 0.742), ABC wins on hERG (AUC 0.825)
-4. **ChemBERTa exhibits catastrophic scaffold-split overfitting** — Tox21 validation AUC 0.83 vs test AUC 0.48, performing worse than random
-5. **No universal winner** — Algorithm selection should be task-dependent
-6. **GNNs outperform frozen foundation models on toxicity** — hERG AUC 0.825 (GNN) vs 0.770 (ChemBERTa)
-7. **Structure-only models fail on complex PK** — Clearance_Hepatocyte R² = −1.019, worse than predicting the mean
+1. **No universal optimizer exists.** Random Search wins on 3/4 regression tasks; metaheuristics (SA, ABC) win on classification. Algorithm choice is task-dependent.
+2. **Random Search is a strong baseline.** No metaheuristic achieves statistically significant improvement over Random Search (Wilcoxon signed-rank, p > 0.05) under a 50-trial budget with scaffold split.
+3. **Scaffold-split evaluation changes optimizer rankings.** The noisy validation landscape induced by scaffold split reduces the advantage of adaptive metaheuristics compared to random-split settings.
+4. **GNNs outperform frozen foundation models on toxicity.** hERG: GNN AUC=0.825 vs ChemBERTa 0.770. Tox21: GNN AUC=0.742 vs ChemBERTa 0.728.
+5. **Structure-only models fail on complex PK.** Hepatocyte clearance R^2 = -1.02 (worse than predicting the mean). Foundation models provide a more stable starting point on this task.
+6. **Dataset difficulty varies dramatically.** From hERG (AUC=0.825, strong) to Hepatocyte clearance (R^2=-1.02, impossible).
 
 ---
 
-## Results (50 Trials)
+## Results
 
-### ADME Regression (Test RMSE — lower is better)
+### HPO Algorithm Comparison (50 Trials, Seed 42)
 
-| Dataset | Random | PSO | ABC | GA | SA | HC |
-|---------|--------|-----|-----|----|----|-----|
-| Caco2_Wang | **0.0027** | 0.0031 | 0.0029 | 0.0031 | 0.0029 | 0.0030 |
-| Half_Life_Obach | 22.31 | **21.66** | **21.66** | **21.66** | 23.70 | 24.52 |
-| Clearance_Hepatocyte | **68.22** | 70.21 | 72.04 | 71.34 | 72.04 | 72.04 |
-| Clearance_Microsome | **38.75** | 42.76 | 42.29 | 42.29 | 40.94 | 41.63 |
+#### ADME Regression (Test RMSE -- lower is better)
 
-### Toxicity Classification (Test AUC-ROC — higher is better)
+| Dataset | PSO | ABC | GA | SA | HC | Random | TPE |
+|---------|-----|-----|----|----|-----|--------|-----|
+| Caco2_Wang | 0.0031 | 0.0029 | 0.0031 | 0.0029 | 0.0030 | **0.0027** | 0.0030 |
+| Half_Life_Obach | **21.66** | **21.66** | **21.66** | 23.70 | 24.52 | 22.31 | 22.34 |
+| Clearance_Hepatocyte_AZ | 70.21 | 72.04 | 71.34 | 72.04 | 72.04 | 68.22 | **52.16** |
+| Clearance_Microsome_AZ | 42.76 | 42.29 | 42.29 | 40.94 | 41.63 | **38.75** | 44.34 |
 
-| Dataset | Random | PSO | ABC | GA | SA | HC |
-|---------|--------|-----|-----|----|----|-----|
-| Tox21 | 0.713 | 0.692 | 0.735 | 0.735 | **0.743** | 0.652 |
-| hERG | 0.747 | 0.747 | **0.825** | 0.747 | 0.802 | 0.821 |
+#### Toxicity Classification (Test AUC-ROC -- higher is better)
 
-> **Source:** Verified from `runs/*/hpo_*.json` files. All results use 50-trial budget with seed 42.
+| Dataset | PSO | ABC | GA | SA | HC | Random | TPE |
+|---------|-----|-----|----|----|-----|--------|-----|
+| Tox21 (NR-AR) | 0.692 | 0.735 | 0.735 | **0.742** | 0.652 | 0.713 | 0.705 |
+| hERG | 0.747 | **0.825** | 0.747 | 0.802 | 0.821 | 0.747 | 0.772 |
 
-### TPE Benchmark (Optuna — separate implementation)
+> **Note:** TPE uses Optuna and additionally searches over dropout (8-dim space), while NiaPy-based algorithms share a 7-dim search space.
 
-TPE was run separately via Optuna and is not directly included in the NiaPy comparison table. Results from the paper:
+### Multi-Seed Validation (5 Seeds)
 
-| Dataset | Task | TPE Result |
-|---------|------|------------|
-| Caco2_Wang | RMSE ↓ | 0.0030 |
-| Half_Life_Obach | RMSE ↓ | 22.34 |
-| Clearance_Hepatocyte_AZ | RMSE ↓ | 52.16 |
-| Clearance_Microsome_AZ | RMSE ↓ | 44.34 |
-| Tox21 (NR-AR) | AUC-ROC ↑ | 0.705 |
-| hERG | AUC-ROC ↑ | 0.772 |
+| Dataset | Task | Metric | Mean +/- Std (95% CI) |
+|---------|------|--------|----------------------|
+| Caco2_Wang | Regr. | RMSE | 0.0033 +/- 0.0005 (0.0027--0.0039) |
+| Half_Life_Obach | Regr. | RMSE | 20.05 +/- 1.17 (18.61--21.50) |
+| Clearance_Hepatocyte_AZ | Regr. | RMSE | 52.37 +/- 2.87 (48.81--55.93) |
+| Clearance_Microsome_AZ | Regr. | RMSE | 53.46 +/- 13.56 (36.63--70.30) |
+| Tox21 (NR-AR) | Class. | AUC | 0.711 +/- 0.012 (0.696--0.727) |
+| hERG | Class. | AUC | 0.805 +/- 0.022 (0.778--0.832) |
 
-> **Note:** TPE values are from `paper_1/main.tex` Table 2, which uses a different preprocessing pipeline than the NiaPy runs. The archived TPE JSON files (`archive/old_experiments/`) show different values, suggesting multiple TPE runs were conducted.
+### Foundation Model Comparison
 
-### Winner Summary
+| Model | Caco2 (R^2) | Half_Life (RMSE) | Clear_Hep (RMSE) | Clear_Micro (RMSE) | Tox21 (AUC) | hERG (AUC) |
+|-------|------------|------------------|-------------------|---------------------|-------------|------------|
+| **GNN-Best** | 0.48 | **21.66** | 68.22 | **38.75** | **0.743** | **0.825** |
+| Morgan-FP | -- | 22.12 | **48.36** | 40.36 | 0.722 | 0.611 |
+| ChemBERTa | 0.48 | 27.39 | **47.31** | 42.56 | 0.728 | 0.770 |
+| MolE-FP | -- | 25.01 | **47.22** | 41.79 | 0.675 | 0.672 |
+| MolCLR | -- | 21.71 | 48.92 | 42.19 | 0.452 | 0.401 |
 
-| Algorithm | Wins | Datasets |
-|-----------|------|----------|
-| Random Search | 3/6 | Caco2, Clearance_Hepatocyte, Clearance_Microsome |
-| PSO / ABC / GA | 1/6 | Half_Life (three-way tie, identical RMSE) |
-| SA | 1/6 | Tox21 |
-| ABC | 1/6 | hERG |
-
----
-
-## Foundation Model Comparison
-
-| Model | Caco2 (RMSE) | Half_Life (RMSE) | Clear_Hep (RMSE) | Clear_Micro (RMSE) | Tox21 (AUC) | hERG (AUC) |
-|-------|-------------|------------------|-------------------|---------------------|-------------|------------|
-| GNN-Best | 0.0027 ᵃ | **21.66** | 68.22 | **38.75** | **0.743** | **0.825** |
-| Morgan-FP | 0.614 | 22.12 | **48.36** | 40.36 | 0.722 | 0.611 |
-| ChemBERTa (frozen) | 0.496 | 27.39 | **47.31** | 42.56 | 0.728 | 0.770 |
-| ChemBERTa-FT | 0.003 ᵃ | 8.31 ᵇ | 52.60 | 42.87 | 0.482 ᶜ | 0.777 |
-| MolE-FP | 0.670 | 25.01 | **47.22** | 41.79 | 0.675 | 0.672 |
-| MolCLR | 0.749 | 21.71 | 48.92 | 42.19 | 0.452 | 0.401 |
-
-> **ᵃ Caco2 scale note:** GNN and ChemBERTa-FT report RMSE in original permeability units; foundation models (Morgan-FP, ChemBERTa-frozen, MolE-FP, MolCLR) report in log-transformed space. Direct comparison on Caco2 is not valid across these scales.
->
-> **ᵇ Half_Life ChemBERTa-FT:** The value 8.31 is from the archived JSON; this likely reflects a different preprocessing pipeline than the GNN runs.
->
-> **ᶜ ChemBERTa-FT Tox21 AUC = 0.482** — worse than random (0.5). This reflects catastrophic scaffold-split overfitting: validation AUC was 0.83 but test AUC collapsed to 0.48. See the paper for detailed analysis.
->
-> **Key takeaway:** Foundation models (ChemBERTa, MolE-FP) outperform GNN on Clearance_Hepatocyte, where all models struggle. GNN with HPO wins on toxicity tasks and Clearance_Microsome. Frozen foundation models were not given equal HPO budget.
+> Caco2 comparison uses R^2 (scale-invariant) because GNN reports RMSE in original units while foundation models use z-score-normalised space.
 
 ---
 
@@ -111,29 +103,27 @@ TPE was run separately via Optuna and is not directly included in the NiaPy comp
 ### Installation
 
 ```bash
-# Clone repository
 git clone https://github.com/NitramVonemats/MANU_Project.git
 cd MANU_Project
-
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-### Run HPO (50 trials, all datasets)
+### Run HPO Benchmark (50 trials, all algorithms, all datasets)
 
 ```bash
 python scripts/run_hpo_50_trials.py
 ```
 
-### Run TPE Benchmark (Bayesian optimization)
+### Run TPE Benchmark (Optuna)
 
 ```bash
 python scripts/run_tpe_benchmark.py
 ```
 
-### Run ChemBERTa Fine-tuning
+### Run Foundation Model Baselines
 
 ```bash
+python scripts/run_complete_foundation_benchmark.py
 python scripts/run_chemberta_finetune.py
 ```
 
@@ -147,133 +137,153 @@ python scripts/run_multi_seed_validation.py
 
 ```bash
 python scripts/create_hpo_visualizations.py
+python scripts/create_foundation_comparison_plots.py
 ```
-
----
-
-## Visualizations
-
-### Algorithm Performance (ADME)
-![Algorithm Performance](paper_1/images/01_algorithm_performance.png)
-
-### Classification Performance (Toxicity)
-![Classification Performance](paper_1/images/05_classification_performance.png)
-
-### Foundation Model Comparison
-![Foundation Comparison](paper_1/images/gnn_vs_foundation_comparison.png)
-
-### Foundation Model Ranking
-![Foundation Ranking](paper_1/images/foundation_ranking.png)
-
-### Confusion Matrices
-![Confusion Matrices](paper_1/images/confusion_matrices.png)
-
-### Multi-Seed Validation
-![Multi-Seed Boxplots](paper_1/images/multi_seed_boxplots.png)
-
-### HPO Convergence
-![Convergence Curves](paper_1/images/hpo_convergence_curves.png)
-
-### Parameter Sensitivity
-![Parameter Sensitivity](paper_1/images/param_sensitivity_heatmap.png)
 
 ---
 
 ## Project Structure
 
 ```
-MANU_Project/
-├── optimized_gnn.py              # Main GNN implementation
-├── src/                          # Core source code
-│   ├── core/                     # Model and training code
-│   └── utils/                    # Utilities
-├── optimization/                 # HPO algorithms
-│   ├── algorithms/               # PSO, ABC, GA, SA, HC, Random
-│   ├── foundation_problem.py     # Foundation model HPO
-│   ├── foundation_runner.py
-│   └── space.py                  # Search space definition
-├── scripts/
-│   ├── run_hpo_50_trials.py      # 50-trial HPO runner
-│   ├── run_tpe_benchmark.py      # TPE Bayesian optimization
-│   ├── run_chemberta_finetune.py # ChemBERTa fine-tuning
-│   ├── run_multi_seed_validation.py # Multi-seed validation
-│   ├── create_hpo_visualizations.py # HPO figures
-│   └── ...                       # Analysis & visualization scripts
-├── runs/                         # HPO results (JSON)
-│   ├── Caco2_Wang/               # 6 algorithm results
-│   ├── Half_Life_Obach/
-│   ├── Clearance_Hepatocyte_AZ/
-│   ├── Clearance_Microsome_AZ/
-│   ├── herg/
-│   ├── tox21/
-│   └── foundation/
-├── datasets/                     # ADME and toxicity datasets
-│   ├── adme/
-│   └── toxicity/
-├── figures/paper/                # Publication figures (PDF)
-├── paper_1/                      # LaTeX paper
-│   ├── main.tex
-│   ├── refs.bib
-│   └── images/                   # Paper figures (PNG)
-├── paper/                        # Documentation PDF + tables
-├── docs/                         # Documentation
-│   ├── METHODOLOGY.md            # Experimental methodology
-│   ├── DATASETS.md               # Dataset descriptions
-│   └── PROJECT_STRUCTURE.md      # Structure documentation
-├── archive/                      # Old experiments & results
-├── requirements.txt
-└── README.md
+MANU/
+|-- paper_1/                          # LaTeX paper
+|   |-- main.tex                      # Main manuscript
+|   |-- refs.bib                      # Bibliography
+|   `-- images/                       # Paper figures (PNG)
+|
+|-- src/core/                         # Core source code
+|   |-- optimized_gnn.py              # GNN model, training, evaluation
+|   `-- model_comparison.py           # Model comparison utilities
+|
+|-- optimization/                     # HPO framework
+|   |-- space.py                      # 7-dim search space definition
+|   |-- problem.py                    # NiaPy problem wrapper
+|   |-- runner.py                     # HPO execution runner
+|   |-- foundation_problem.py         # Foundation model HPO wrapper
+|   |-- foundation_runner.py          # Foundation model HPO runner
+|   `-- algorithms/                   # Algorithm implementations
+|       |-- pso.py                    # Particle Swarm Optimization
+|       |-- genetic.py                # Genetic Algorithm
+|       |-- abc.py                    # Artificial Bee Colony
+|       |-- simulated_annealing.py    # Simulated Annealing
+|       |-- hill_climbing.py          # Hill Climbing
+|       `-- random_search.py          # Random Search
+|
+|-- scripts/                          # Execution and analysis scripts
+|   |-- run_hpo_50_trials.py          # Main HPO runner (50 trials)
+|   |-- run_tpe_benchmark.py          # TPE via Optuna
+|   |-- run_multi_seed_validation.py  # 5-seed validation
+|   |-- run_chemberta_finetune.py     # ChemBERTa fine-tuning
+|   |-- run_complete_foundation_benchmark.py
+|   |-- create_hpo_visualizations.py  # HPO figures
+|   |-- create_foundation_comparison_plots.py
+|   |-- statistical_significance_tests.py
+|   `-- analyses/                     # Detailed analysis scripts
+|
+|-- runs/                             # HPO results (JSON, per dataset/algo)
+|   |-- Caco2_Wang/                   # 6 algo result files
+|   |-- Half_Life_Obach/
+|   |-- Clearance_Hepatocyte_AZ/
+|   |-- Clearance_Microsome_AZ/
+|   |-- tox21/
+|   `-- herg/
+|
+|-- results/                          # Processed results
+|   |-- multi_seed/                   # 5-seed validation results
+|   |-- tpe_benchmark/                # TPE results (6 datasets)
+|   |-- foundation_benchmark/         # Foundation model comparison CSV
+|   |-- chemberta_finetune/           # ChemBERTa fine-tuning results
+|   |-- figures/                      # Generated tables and figures
+|   `-- hpo/                          # Processed HPO results
+|
+|-- datasets/                         # Raw datasets (CSV)
+|   |-- adme/                         # 4 ADME regression datasets
+|   `-- toxicity/                     # Tox21, hERG, ClinTox
+|
+|-- external/MolCLR/                  # MolCLR pretrained checkpoints
+|-- figures/paper/                    # Generated LaTeX tables
+|-- archive/                          # Old experiments and scripts
+|-- requirements.txt                  # Python dependencies
+`-- README.md                         # This file
 ```
 
 ---
 
 ## Datasets
 
-| Dataset | Task | Molecules | Metric | Difficulty |
-|---------|------|-----------|--------|------------|
-| Caco2_Wang | Permeability | 910 | RMSE, R² | Moderate (R²=0.48) |
-| Half_Life_Obach | Half-life | 667 | RMSE, R² | Very Hard (R²=0.004) |
-| Clearance_Hepatocyte | Clearance | 1,213 | RMSE, R² | Impossible (R²=−1.02) |
-| Clearance_Microsome | Clearance | 1,102 | RMSE, R² | Weak (R²=0.19) |
-| Tox21 (NR-AR) | Toxicity | 7,258 | AUC-ROC, F1 | Imbalanced (3.5% pos) |
-| hERG | Cardiotoxicity | 655 | AUC-ROC, F1 | Good (AUC=0.825) |
+All datasets are from the [Therapeutics Data Commons (TDC)](https://tdcommons.ai/) ADMET benchmark.
 
-All datasets sourced from [Therapeutics Data Commons (TDC)](https://tdcommons.ai/) with scaffold-based splitting (Bemis–Murcko, 80/10/10).
+| Dataset | Task | Molecules | Primary Metric | Difficulty |
+|---------|------|-----------|----------------|------------|
+| Caco2_Wang | Permeability (regression) | 910 | RMSE, R^2 | Moderate (R^2=0.48) |
+| Half_Life_Obach | Half-life (regression) | 667 | RMSE, R^2 | Very Hard (R^2=0.004) |
+| Clearance_Hepatocyte_AZ | Clearance (regression) | 1,213 | RMSE, R^2 | Impossible (R^2=-1.02) |
+| Clearance_Microsome_AZ | Clearance (regression) | 1,102 | RMSE, R^2 | Weak (R^2=0.19) |
+| Tox21 (NR-AR) | Toxicity (classification) | 7,258 | AUC-ROC | Moderate (3.5% pos) |
+| hERG | Cardiotoxicity (classification) | 655 | AUC-ROC | Good (AUC=0.825) |
+
+Splitting: Bemis-Murcko scaffold split (80/10/10 train/val/test), seed 42.
 
 ---
 
 ## HPO Algorithms
 
-| Algorithm | Type | Implementation | Description |
-|-----------|------|---------------|-------------|
-| **Random** | Baseline | NiaPy | Uniform random sampling |
-| **PSO** | Swarm | NiaPy | Particle Swarm Optimization |
-| **ABC** | Swarm | NiaPy | Artificial Bee Colony |
-| **GA** | Evolutionary | NiaPy | Genetic Algorithm |
-| **SA** | Probabilistic | NiaPy | Simulated Annealing |
-| **HC** | Local Search | NiaPy | Hill Climbing |
-| **TPE** | Bayesian | Optuna | Tree-structured Parzen Estimator |
+| Algorithm | Type | Framework | Config |
+|-----------|------|-----------|--------|
+| Random Search | Baseline | NiaPy | Uniform sampling |
+| PSO | Swarm intelligence | NiaPy | pop=16, C1=2.0, C2=2.0, w=0.7 |
+| ABC | Swarm intelligence | NiaPy | colony=16, limit=50 |
+| GA | Evolutionary | NiaPy | pop=16, mutation=0.1, crossover=0.8 |
+| SA | Probabilistic | NiaPy | T0=50, alpha=0.99 |
+| HC | Local search | NiaPy | Greedy, single init |
+| TPE | Bayesian | Optuna | 10 startup + 40 TPE, median pruning |
+
+### Search Space (7 dimensions for NiaPy, 8 for TPE)
+
+| Hyperparameter | Range | Type |
+|----------------|-------|------|
+| Hidden dimensions | {64, 96, 128, 192, 256, 384, 512} | Categorical |
+| Number of layers | {3, 4, 5, 6, 7} | Categorical |
+| MLP head layer 1 | {128, 192, 256, 384, 512} | Categorical |
+| MLP head layer 2 | {64, 96, 128, 192, 256} | Categorical |
+| MLP head layer 3 | {32, 48, 64, 96, 128} | Categorical |
+| Learning rate | [1e-4, 1e-2] | Log-uniform |
+| Weight decay | [1e-6, 1e-2] | Log-uniform |
+| Dropout (TPE only) | [0.0, 0.5] | Uniform |
 
 ---
 
 ## Practitioner Recommendations
 
-| Task Type | Recommended | Reason |
-|-----------|-------------|--------|
-| **Regression (general)** | Random Search or PSO | Fast, competitive; Random wins 3/4 ADME tasks |
-| **Classification** | SA or ABC | Better handles class imbalance; wins on both tox tasks |
-| **Complex regression** | TPE | Best sample efficiency on Clearance_Hepatocyte |
-| **Toxicity screening** | GNN with HPO | Outperforms frozen foundation models |
-| **Quick baseline** | Morgan-FP | Simple, interpretable, no GPU needed |
+| Scenario | Recommended Algorithm | Reason |
+|----------|----------------------|--------|
+| Regression (general) | Random Search or PSO | Fast, competitive; Random wins 3/4 ADME tasks |
+| Classification / toxicity | SA or ABC | Better handles class imbalance; wins on both tox tasks |
+| Complex metabolic endpoints | TPE (Optuna) | Best sample efficiency on Clearance_Hepatocyte |
+| Quick baseline | Morgan-FP + MLP | Simple, interpretable, no GPU needed |
+| Limited compute budget | Random Search | Zero optimizer overhead, competitive with 50 trials |
 
 ---
 
 ## Documentation
 
-- **[docs/METHODOLOGY.md](docs/METHODOLOGY.md)** — Experimental methodology and setup
-- **[docs/DATASETS.md](docs/DATASETS.md)** — Dataset descriptions and analysis
-- **[docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)** — Project structure documentation
-- **[paper_1/main.tex](paper_1/)** — LaTeX paper
+Full project documentation: [`docs/DOCUMENTATION.md`](docs/DOCUMENTATION.md) (~40 pages)
+
+Covers: methodology, model architecture, datasets, HPO algorithms, foundation models, results analysis, reproducibility, and API reference.
+
+---
+
+## Citation
+
+If you use this benchmark in your research, please cite:
+
+```bibtex
+@article{manu2025,
+  title={Framework for Benchmarking and Optimization of Small Molecule Foundation Models for ADMET},
+  author={Martin and Mila and Adrian and Viktorija and Ilinka},
+  year={2025}
+}
+```
 
 ---
 
@@ -281,17 +291,15 @@ All datasets sourced from [Therapeutics Data Commons (TDC)](https://tdcommons.ai
 
 MIT License
 
----
-
 ## Acknowledgments
 
-- [Therapeutics Data Commons (TDC)](https://tdcommons.ai/)
-- [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/)
-- [NiaPy](https://github.com/NiaOrg/NiaPy) — Metaheuristic algorithms
-- [Optuna](https://optuna.org/) — TPE optimization
-- [Hugging Face Transformers](https://huggingface.co/) — ChemBERTa
+- [Therapeutics Data Commons (TDC)](https://tdcommons.ai/) -- Datasets and benchmarks
+- [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/) -- GNN framework
+- [NiaPy](https://github.com/NiaOrg/NiaPy) -- Metaheuristic algorithms
+- [Optuna](https://optuna.org/) -- TPE optimization
+- [Hugging Face Transformers](https://huggingface.co/) -- ChemBERTa
+- [RDKit](https://www.rdkit.org/) -- Molecular featurization
 
 ---
 
-*Last Updated: 2026-03-22*
-*Total Compute: ~45 hours | 2,100+ model evaluations | 5-seed validation*
+*Last updated: 2026-03-23*

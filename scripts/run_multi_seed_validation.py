@@ -54,14 +54,14 @@ MAX_EPOCHS = 50
 PATIENCE = 12
 OUTPUT_DIR = os.path.join(project_root, 'results', 'multi_seed')
 
-# Best hyperparameters from HPO (use these for all seeds)
+# Best hyperparameters from HPO (extracted from runs/*.json best trials)
 BEST_PARAMS = {
-    'Caco2_Wang': {'hidden_dim': 128, 'num_layers': 5, 'lr': 1e-3, 'weight_decay': 1e-4, 'dropout': 0.1},
-    'Half_Life_Obach': {'hidden_dim': 128, 'num_layers': 5, 'lr': 1e-3, 'weight_decay': 1e-4, 'dropout': 0.1},
-    'Clearance_Hepatocyte_AZ': {'hidden_dim': 128, 'num_layers': 5, 'lr': 1e-3, 'weight_decay': 1e-4, 'dropout': 0.1},
-    'Clearance_Microsome_AZ': {'hidden_dim': 128, 'num_layers': 5, 'lr': 1e-3, 'weight_decay': 1e-4, 'dropout': 0.1},
-    'tox21': {'hidden_dim': 384, 'num_layers': 5, 'lr': 1e-3, 'weight_decay': 1e-4, 'dropout': 0.15},
-    'herg': {'hidden_dim': 512, 'num_layers': 5, 'lr': 1e-3, 'weight_decay': 1e-4, 'dropout': 0.1},
+    'Caco2_Wang': {'hidden_dim': 96, 'num_layers': 5, 'lr': 5.685205e-03, 'weight_decay': 9.184901e-04, 'dropout': 0.0, 'head_dims': [512, 96, 96]},
+    'Half_Life_Obach': {'hidden_dim': 256, 'num_layers': 4, 'lr': 1.833702e-03, 'weight_decay': 1.077335e-03, 'dropout': 0.0, 'head_dims': [384, 96, 64]},
+    'Clearance_Hepatocyte_AZ': {'hidden_dim': 64, 'num_layers': 3, 'lr': 1.040259e-03, 'weight_decay': 4.268408e-03, 'dropout': 0.0, 'head_dims': [192, 128, 64]},
+    'Clearance_Microsome_AZ': {'hidden_dim': 384, 'num_layers': 4, 'lr': 2.870875e-03, 'weight_decay': 1.216414e-03, 'dropout': 0.0, 'head_dims': [192, 128, 96]},
+    'tox21': {'hidden_dim': 384, 'num_layers': 5, 'lr': 2.953687e-03, 'weight_decay': 1.713040e-03, 'dropout': 0.0, 'head_dims': [512, 192, 48]},
+    'herg': {'hidden_dim': 512, 'num_layers': 5, 'lr': 8.938090e-03, 'weight_decay': 1.108049e-03, 'dropout': 0.0, 'head_dims': [384, 192, 48]},
 }
 
 
@@ -178,7 +178,7 @@ def smiles_to_graph(smiles, dataset_name=None):
 
 class GNNModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers, dropout,
-                 task_type, adme_dim=15):
+                 task_type, adme_dim=15, head_dims=(256, 128, 64)):
         super().__init__()
         from torch_geometric.nn import GCNConv, global_mean_pool, global_max_pool
 
@@ -200,18 +200,14 @@ class GNNModel(nn.Module):
         graph_embed_dim = hidden_dim * 2
         combined_dim = graph_embed_dim + adme_dim
 
-        self.head = nn.Sequential(
-            nn.Linear(combined_dim, 256),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(64, output_dim),
-        )
+        # Dynamic MLP head (same as optimized_gnn.py)
+        layers = []
+        in_dim = combined_dim
+        for h in head_dims:
+            layers.extend([nn.Linear(in_dim, h), nn.ReLU(), nn.Dropout(dropout)])
+            in_dim = h
+        layers.append(nn.Linear(in_dim, output_dim))
+        self.head = nn.Sequential(*layers)
 
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
@@ -417,9 +413,10 @@ def run_single_seed(dataset_name, seed, params, device):
         hidden_dim=params['hidden_dim'],
         output_dim=1,
         num_layers=params['num_layers'],
-        dropout=params['dropout'],
+        dropout=params.get('dropout', 0.0),
         task_type='classification' if is_classification else 'regression',
         adme_dim=data_info['adme_dim'],
+        head_dims=params.get('head_dims', (256, 128, 64)),
     ).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=params['lr'], weight_decay=params['weight_decay'])

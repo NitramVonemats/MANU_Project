@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering
+\caption{Cross-algorithm variance analysis. Shows mean $\pm$ std across 6 HPO algorithms.}
+\label{tab:variance}
+\small
+\begin{tabular}{lccc}
+\toprule
+\textbf{Dataset} & \textbf{Metric} & \textbf{Mean $\pm$ Std} & \textbf{Best Algorithm} \\
+\midrule
+Caco2\_Wang & RMSE & 0.0028 $\pm$ 0.0002 & ABC \\
+Clearance\_Hepatocyte\_AZ & RMSE & 60.2510 $\pm$ 12.8507 & SA \\
+Clearance\_Microsome\_AZ & RMSE & 437.3024 $\pm$ 251.4800 & SA \\
+Half\_Life\_Obach & RMSE & 20.9305 $\pm$ 0.6883 & ABC \\
+herg & F1 & 0.8580 $\pm$ 0.0148 & HC \\
+tox21 & F1 & 0.4616 $\pm$ 0.0560 & RANDOM \\
+\bottomrule
+\end{tabular}
+\end{table}
