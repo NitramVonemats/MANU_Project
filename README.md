@@ -9,7 +9,7 @@ Systematic HPO Benchmark for Molecular GNNs
 
 > **Authors:** Martin, Mila, Viktorija, Ilinka
 > **Paper:** [`paper_1/main.tex`](paper_1/main.tex)
-> **Target journal:** Bioinformatics
+
 
 ---
 
