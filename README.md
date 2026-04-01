@@ -9,7 +9,7 @@
 
 > **Authors:** Martin Stamenov, Mila Gjurovska, Viktorija Vodilovska, Ilinka Ivanoska
 > **Paper:** [`paper_1/main.tex`](paper_1/main.tex)
-> **Target journal:** BMC Bioinformatics / Journal of Cheminformatics
+
 
 ---
 
@@ -273,19 +273,6 @@ Covers: methodology, model architecture, datasets, HPO algorithms, foundation mo
 
 ---
 
-## Citation
-
-If you use this benchmark in your research, please cite:
-
-```bibtex
-@article{stamenov2026hpo,
-  title={Benchmarking Hyperparameter Optimization Strategies for Graph Neural Networks on ADMET Prediction Under Scaffold-Split Evaluation},
-  author={Stamenov, Martin and Gjurovska, Mila and Vodilovska, Viktorija and Ivanoska, Ilinka},
-  year={2026}
-}
-```
-
----
 
 ## License
 
