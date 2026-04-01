@@ -54,7 +54,7 @@ def load_hpo_results(runs_dir="results/hpo"):
     return results
 
 
-def generate_training_curves(results, output_dir="figures/paper"):
+def generate_training_curves(results, output_dir="figures/paper-sources-2"):
     """Generate training curves (loss vs epoch) for all datasets."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -120,7 +120,7 @@ def generate_training_curves(results, output_dir="figures/paper"):
     print(f"\n[DONE] Training curves saved to {output_dir}/")
 
 
-def generate_classification_metrics_plot(results, output_dir="figures/paper"):
+def generate_classification_metrics_plot(results, output_dir="figures/paper-sources-2"):
     """Generate validation metrics evolution for classification datasets."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -184,7 +184,7 @@ def generate_classification_metrics_plot(results, output_dir="figures/paper"):
     print(f"\n[DONE] Classification metrics plots saved to {output_dir}/")
 
 
-def create_comparison_tables(results, output_dir="figures/paper"):
+def create_comparison_tables(results, output_dir="figures/paper-sources-2"):
     """Create comprehensive comparison tables in LaTeX format."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -354,7 +354,7 @@ def create_comparison_tables(results, output_dir="figures/paper"):
     print(f"\n[DONE] Comparison tables saved to {output_dir}/")
 
 
-def create_dataset_statistics_table(output_dir="figures/paper"):
+def create_dataset_statistics_table(output_dir="figures/paper-sources-2"):
     """Create dataset statistics table."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -387,7 +387,7 @@ def create_dataset_statistics_table(output_dir="figures/paper"):
     print(f"\n[DONE] Dataset statistics table saved")
 
 
-def generate_performance_vs_time(results, output_dir="figures/paper"):
+def generate_performance_vs_time(results, output_dir="figures/paper-sources-2"):
     """Generate performance vs training time scatter plot."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -454,7 +454,7 @@ def generate_performance_vs_time(results, output_dir="figures/paper"):
 
 
 def main():
-    """Generate all paper visualizations."""
+    """Generate all paper-sources-2 visualizations."""
     print("\n" + "="*80)
     print("GENERATING PAPER VISUALIZATIONS")
     print("="*80)
@@ -465,7 +465,7 @@ def main():
     print(f"  Loaded {len(results)} datasets")
 
     # Create output directory
-    output_dir = "figures/paper"
+    output_dir = "figures/paper-sources-2"
     os.makedirs(output_dir, exist_ok=True)
 
     # Generate visualizations

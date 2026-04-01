@@ -16,7 +16,7 @@ from pathlib import Path
 # Project root
 PROJECT_ROOT = Path(__file__).parent.parent
 RESULTS_DIR = PROJECT_ROOT / 'results'
-FIGURES_DIR = PROJECT_ROOT / 'figures' / 'paper'
+FIGURES_DIR = PROJECT_ROOT / 'figures' / 'paper-sources-2'
 
 os.makedirs(FIGURES_DIR, exist_ok=True)
 
@@ -191,7 +191,7 @@ def create_chemberta_overfitting_analysis():
 
     Recommendation:
     ─────────────────────────────────
-    Use GNN results (AUC=0.742) for paper.
+    Use GNN results (AUC=0.742) for paper-sources-2.
     Report ChemBERTa limitation as evidence
     of scaffold split sensitivity.
     """
@@ -423,7 +423,7 @@ def create_diagnostic_summary_figure():
     ║  2. CHEMBERTA TOX21                                      ║
     ║     Status: ⚠ DOCUMENTED (not fully resolved)            ║
     ║     Root cause: Scaffold split distribution shift        ║
-    ║     Recommendation: Use GNN results for paper            ║
+    ║     Recommendation: Use GNN results for paper-sources-2            ║
     ║                                                          ║
     ║  3. MOLCLR CLASSIFICATION                                ║
     ║     Status: ✓ PARTIALLY IMPROVED                         ║

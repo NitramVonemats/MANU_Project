@@ -1,6 +1,6 @@
 """
 Analyze HPO results and compute variance/uncertainty metrics.
-Phase 3 of paper preparation.
+Phase 3 of paper-sources-2 preparation.
 
 Extracts metrics from HPO logs and computes:
 - Per-algorithm performance
@@ -259,7 +259,7 @@ def plot_algorithm_comparison(df, output_dir):
 
 
 def generate_latex_tables(df, stats_df, output_dir):
-    """Generate LaTeX tables for the paper."""
+    """Generate LaTeX tables for the paper-sources-2."""
 
     classification_datasets = ['tox21', 'herg']
 
@@ -400,7 +400,7 @@ def main():
     print(f"Algorithms: {df['algorithm'].unique().tolist()}")
 
     # Output directory
-    output_dir = Path("figures/paper")
+    output_dir = Path("figures/paper-sources-2")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Compute statistics

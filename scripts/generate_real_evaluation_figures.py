@@ -2,7 +2,7 @@
 Generate REAL evaluation figures from actual model predictions.
 NO synthetic data - all plots from held-out test set predictions.
 
-Phase 2 of paper preparation.
+Phase 2 of paper-sources-2 preparation.
 """
 
 import sys
@@ -205,7 +205,7 @@ def main():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Device: {device}")
 
-    output_dir = Path("figures/paper")
+    output_dir = Path("figures/paper-sources-2")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     predictions_dir = Path("results/predictions")
@@ -295,10 +295,10 @@ def main():
     print("Generated figures:")
     print("="*70)
     for ds_name in classification_datasets:
-        print(f"  - figures/paper/roc_curve_{ds_name}.png")
-        print(f"  - figures/paper/confusion_matrix_{ds_name}.png")
-        print(f"  - figures/paper/confusion_matrix_{ds_name}_normalized.png")
-        print(f"  - figures/paper/pr_curve_{ds_name}.png")
+        print(f"  - figures/paper-sources-2/roc_curve_{ds_name}.png")
+        print(f"  - figures/paper-sources-2/confusion_matrix_{ds_name}.png")
+        print(f"  - figures/paper-sources-2/confusion_matrix_{ds_name}_normalized.png")
+        print(f"  - figures/paper-sources-2/pr_curve_{ds_name}.png")
 
     return all_results
 

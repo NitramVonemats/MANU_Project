@@ -1,15 +1,15 @@
-Systematic HPO Benchmark for Molecular GNNs
+# MANU -- Benchmarking HPO Strategies for GNNs on ADMET Prediction
 
-**Framework for Benchmarking and Optimization of Small Molecule Foundation Models for ADMET**
+**Benchmarking Hyperparameter Optimization Strategies for Graph Neural Networks on ADMET Prediction Under Scaffold-Split Evaluation**
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
 [![PyG](https://img.shields.io/badge/PyG-2.4+-orange.svg)](https://pytorch-geometric.readthedocs.io/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> **Authors:** Martin, Mila, Viktorija, Ilinka
+> **Authors:** Martin Stamenov, Mila Gjurovska, Viktorija Vodilovska, Ilinka Ivanoska
 > **Paper:** [`paper_1/main.tex`](paper_1/main.tex)
-
+> **Target journal:** BMC Bioinformatics / Journal of Cheminformatics
 
 ---
 
@@ -94,7 +94,7 @@ The framework answers two core questions:
 | MolE-FP | -- | 25.01 | **47.22** | 41.79 | 0.675 | 0.672 |
 | MolCLR | -- | 21.71 | 48.92 | 42.19 | 0.452 | 0.401 |
 
-> Caco2 comparison uses R^2 (scale-invariant) because GNN reports RMSE in original units while foundation models use z-score-normalised space.
+> Caco2 comparison uses R^2 (scale-invariant) because GNN reports RMSE in original units while foundation models use z-score-normalized space.
 
 ---
 
@@ -234,9 +234,9 @@ Splitting: Bemis-Murcko scaffold split (80/10/10 train/val/test), seed 42.
 | PSO | Swarm intelligence | NiaPy | pop=16, C1=2.0, C2=2.0, w=0.7 |
 | ABC | Swarm intelligence | NiaPy | colony=16, limit=50 |
 | GA | Evolutionary | NiaPy | pop=16, mutation=0.1, crossover=0.8 |
-| SA | Probabilistic | NiaPy | T0=50, alpha=0.99 |
+| SA | Probabilistic | NiaPy | T0=1.0, alpha=0.99 |
 | HC | Local search | NiaPy | Greedy, single init |
-| TPE | Bayesian | Optuna | 10 startup + 40 TPE, median pruning |
+| TPE | Bayesian | Optuna | 10 startup trials, median pruning (5 startup) |
 
 ### Search Space (7 dimensions for NiaPy, 8 for TPE)
 
@@ -278,10 +278,10 @@ Covers: methodology, model architecture, datasets, HPO algorithms, foundation mo
 If you use this benchmark in your research, please cite:
 
 ```bibtex
-@article{manu2025,
-  title={Framework for Benchmarking and Optimization of Small Molecule Foundation Models for ADMET},
-  author={Martin and Mila and Adrian and Viktorija and Ilinka},
-  year={2025}
+@article{stamenov2026hpo,
+  title={Benchmarking Hyperparameter Optimization Strategies for Graph Neural Networks on ADMET Prediction Under Scaffold-Split Evaluation},
+  author={Stamenov, Martin and Gjurovska, Mila and Vodilovska, Viktorija and Ivanoska, Ilinka},
+  year={2026}
 }
 ```
 
@@ -302,4 +302,4 @@ MIT License
 
 ---
 
-*Last updated: 2026-03-23*
+*Last updated: 2026-04-01*

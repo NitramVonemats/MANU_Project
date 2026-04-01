@@ -1,5 +1,5 @@
 """
-Generate publication-quality figures for the MANU paper
+Generate publication-quality figures for the MANU paper-sources-2
 Uses LOG-SCALE metrics as primary for regression tasks (TDC standard)
 Includes all HPO algorithms and foundation models with real data
 """
@@ -33,7 +33,7 @@ plt.rcParams['figure.dpi'] = 300
 plt.rcParams['savefig.dpi'] = 300
 plt.rcParams['savefig.bbox'] = 'tight'
 
-OUTPUT_DIR = os.path.join(project_root, 'figures', 'paper')
+OUTPUT_DIR = os.path.join(project_root, 'figures', 'paper-sources-2')
 
 # Colorblind-friendly palette (tab10 + custom)
 COLORS = {

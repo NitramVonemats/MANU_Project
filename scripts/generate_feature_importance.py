@@ -46,7 +46,7 @@ def load_all_correlations():
     return combined
 
 
-def plot_feature_importance_ranking(correlations, output_dir="figures/paper"):
+def plot_feature_importance_ranking(correlations, output_dir="figures/paper-sources-2"):
     """Plot feature importance ranking across all datasets."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -88,7 +88,7 @@ def plot_feature_importance_ranking(correlations, output_dir="figures/paper"):
     return feature_importance
 
 
-def plot_feature_importance_heatmap(correlations, output_dir="figures/paper"):
+def plot_feature_importance_heatmap(correlations, output_dir="figures/paper-sources-2"):
     """Plot feature importance heatmap across datasets."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -124,7 +124,7 @@ def plot_feature_importance_heatmap(correlations, output_dir="figures/paper"):
     print(f"  [OK] {filename}")
 
 
-def plot_top_features_per_dataset(correlations, output_dir="figures/paper", top_n=5):
+def plot_top_features_per_dataset(correlations, output_dir="figures/paper-sources-2", top_n=5):
     """Plot top N features for each dataset."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -195,7 +195,7 @@ def main():
     print(f"  Total features: {correlations['Feature'].nunique()}")
 
     # Create output directory
-    output_dir = "figures/paper"
+    output_dir = "figures/paper-sources-2"
     os.makedirs(output_dir, exist_ok=True)
 
     # Generate visualizations

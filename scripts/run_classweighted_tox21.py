@@ -30,7 +30,7 @@ from optimized_gnn import (
 )
 
 RESULTS_DIR = PROJECT_ROOT / "results" / "class_weighted"
-FIGURES_DIR = PROJECT_ROOT / "figures" / "paper"
+FIGURES_DIR = PROJECT_ROOT / "figures" / "paper-sources-2"
 
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
@@ -296,7 +296,7 @@ def main():
 
     print(f"\nResults saved: {output_path}")
 
-    # Generate LaTeX snippet for paper
+    # Generate LaTeX snippet for paper-sources-2
     latex_snippet = f"""
 % Class-weighted BCE results for Tox21
 % Unweighted: F1={uw['test_metrics']['f1']:.3f}, AUC={uw['test_metrics']['auc_roc']:.3f}

@@ -5,7 +5,7 @@ COMPREHENSIVE ABLATION STUDIES FROM HPO RESULTS
 Generate detailed ablation study visualizations from HPO results:
 1. Hyperparameter sensitivity analysis (all datasets)
 2. Performance vs hyperparameter relationships
-3. Unified ablation plots for paper
+3. Unified ablation plots for paper-sources-2
 """
 
 import os

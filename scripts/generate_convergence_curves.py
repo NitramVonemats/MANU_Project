@@ -16,7 +16,7 @@ from pathlib import Path
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
 RESULTS_DIR = PROJECT_ROOT / "results" / "hpo"
-FIGURES_DIR = PROJECT_ROOT / "figures" / "paper"
+FIGURES_DIR = PROJECT_ROOT / "figures" / "paper-sources-2"
 LOGS_DIR = PROJECT_ROOT / "logs"
 
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)

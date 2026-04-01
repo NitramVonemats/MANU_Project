@@ -619,7 +619,7 @@ K-hop neighborhood information. These are then pooled to obtain a graph-level re
 for molecular property prediction.''')
 
     # Architecture comparison figure
-    arch_fig = FIGURES_DIR / 'paper' / 'gnn_architecture_comparison.png'
+    arch_fig = FIGURES_DIR / 'paper-sources-2' / 'gnn_architecture_comparison.png'
     if arch_fig.exists():
         add_image(doc, str(arch_fig), Inches(5.5), 'GNN Architecture Performance Comparison')
 
@@ -713,7 +713,7 @@ TPE is particularly effective when:
 - Sample efficiency is important''')
 
     # HPO comparison figure
-    hpo_fig = FIGURES_DIR / 'paper' / 'hpo_algorithm_comparison.png'
+    hpo_fig = FIGURES_DIR / 'paper-sources-2' / 'hpo_algorithm_comparison.png'
     if hpo_fig.exists():
         add_image(doc, str(hpo_fig), Inches(5.5), 'HPO Algorithm Performance Comparison')
 
@@ -834,8 +834,8 @@ Note: Dropout is excluded from the main NiaPy-based HPO (set to 0.0) but include
 
     # Architecture figures
     arch_figs = [
-        (FIGURES_DIR / 'paper' / 'gnn_architecture_comparison_all_datasets.png', 'GNN Architecture Performance Across All Datasets'),
-        (FIGURES_DIR / 'paper' / 'hyperparameter_sensitivity_analysis.png', 'Hyperparameter Sensitivity Analysis'),
+        (FIGURES_DIR / 'paper-sources-2' / 'gnn_architecture_comparison_all_datasets.png', 'GNN Architecture Performance Across All Datasets'),
+        (FIGURES_DIR / 'paper-sources-2' / 'hyperparameter_sensitivity_analysis.png', 'Hyperparameter Sensitivity Analysis'),
     ]
 
     for fig_path, caption in arch_figs:
@@ -885,8 +885,8 @@ After 50 trials, evaluate best configuration on held-out test set.''')
         (FIGURES_DIR / 'hpo' / '01_algorithm_performance.png', 'HPO Algorithm Performance Overview'),
         (FIGURES_DIR / 'hpo' / '02_best_hyperparameters.png', 'Best Hyperparameters Found'),
         (FIGURES_DIR / 'hpo' / '03_winner_analysis.png', 'Algorithm Winner Analysis'),
-        (FIGURES_DIR / 'paper' / 'regression_algorithm_comparison.png', 'Regression Algorithm Comparison'),
-        (FIGURES_DIR / 'paper' / 'hpo_convergence_curves.png', 'HPO Convergence Curves'),
+        (FIGURES_DIR / 'paper-sources-2' / 'regression_algorithm_comparison.png', 'Regression Algorithm Comparison'),
+        (FIGURES_DIR / 'paper-sources-2' / 'hpo_convergence_curves.png', 'HPO Convergence Curves'),
     ]
 
     for fig_path, caption in hpo_figs:
@@ -898,9 +898,9 @@ After 50 trials, evaluate best configuration on held-out test set.''')
 
     class_figs = [
         (FIGURES_DIR / 'hpo' / '05_classification_performance.png', 'Classification Performance'),
-        (FIGURES_DIR / 'paper' / 'classification_algorithm_comparison.png', 'Classification Algorithm Comparison'),
-        (FIGURES_DIR / 'paper' / 'roc_curves_best_comparison.png', 'ROC Curves Comparison'),
-        (FIGURES_DIR / 'paper' / 'confusion_matrices_comparison.png', 'Confusion Matrices Comparison'),
+        (FIGURES_DIR / 'paper-sources-2' / 'classification_algorithm_comparison.png', 'Classification Algorithm Comparison'),
+        (FIGURES_DIR / 'paper-sources-2' / 'roc_curves_best_comparison.png', 'ROC Curves Comparison'),
+        (FIGURES_DIR / 'paper-sources-2' / 'confusion_matrices_comparison.png', 'Confusion Matrices Comparison'),
     ]
 
     for fig_path, caption in class_figs:
@@ -947,8 +947,8 @@ framework for 50 trials per dataset. We highlight TPE because:
             add_table(doc, list(df.columns), rows, 'TPE Benchmark Results')
 
     tpe_figs = [
-        (FIGURES_DIR / 'paper' / 'hpo_comparison_with_tpe.png', 'HPO Algorithms vs TPE Comparison'),
-        (FIGURES_DIR / 'paper' / 'tpe_optimization_history.png', 'TPE Optimization History'),
+        (FIGURES_DIR / 'paper-sources-2' / 'hpo_comparison_with_tpe.png', 'HPO Algorithms vs TPE Comparison'),
+        (FIGURES_DIR / 'paper-sources-2' / 'tpe_optimization_history.png', 'TPE Optimization History'),
     ]
 
     for fig_path, caption in tpe_figs:
@@ -988,8 +988,8 @@ framework for 50 trials per dataset. We highlight TPE because:
     fm_figs = [
         (FIGURES_DIR / 'foundation' / 'gnn_vs_foundation_comparison.png', 'GNN vs Foundation Models'),
         (FIGURES_DIR / 'foundation' / 'foundation_ranking.png', 'Foundation Model Ranking'),
-        (FIGURES_DIR / 'paper' / 'foundation_comparison_with_finetune.png', 'Foundation Comparison with Fine-tuning'),
-        (FIGURES_DIR / 'paper' / 'final_model_comparison.png', 'Final Model Comparison'),
+        (FIGURES_DIR / 'paper-sources-2' / 'foundation_comparison_with_finetune.png', 'Foundation Comparison with Fine-tuning'),
+        (FIGURES_DIR / 'paper-sources-2' / 'final_model_comparison.png', 'Final Model Comparison'),
     ]
 
     for fig_path, caption in fm_figs:
@@ -1041,7 +1041,7 @@ Root Cause Analysis:
 This finding highlights the importance of proper evaluation protocols and the
 limitations of SMILES-based transformers for scaffold-split scenarios.''', italic=True)
 
-    cb_fig = FIGURES_DIR / 'paper' / 'chemberta_overfitting_analysis.png'
+    cb_fig = FIGURES_DIR / 'paper-sources-2' / 'chemberta_overfitting_analysis.png'
     if cb_fig.exists():
         add_image(doc, str(cb_fig), Inches(5.5), 'ChemBERTa Overfitting Analysis')
 
@@ -1104,8 +1104,8 @@ After Fix (clip_min=1e-3, consistent normalization):
                       rows, 'Multi-Seed Validation Results (Fixed)')
 
     ms_figs = [
-        (FIGURES_DIR / 'paper' / 'multi_seed_boxplots_updated.png', 'Multi-Seed Validation Boxplots'),
-        (FIGURES_DIR / 'paper' / 'diagnostic_summary.png', 'Diagnostic Summary'),
+        (FIGURES_DIR / 'paper-sources-2' / 'multi_seed_boxplots_updated.png', 'Multi-Seed Validation Boxplots'),
+        (FIGURES_DIR / 'paper-sources-2' / 'diagnostic_summary.png', 'Diagnostic Summary'),
     ]
 
     for fig_path, caption in ms_figs:
@@ -1145,7 +1145,7 @@ Finding: 4-5 layers is optimal
     ablation_figs = [
         (FIGURES_DIR / 'ablation_studies' / 'unified_hyperparameter_heatmaps.png', 'Hyperparameter Heatmaps'),
         (FIGURES_DIR / 'ablation_studies' / 'unified_hyperparameter_correlations.png', 'Hyperparameter Correlations'),
-        (FIGURES_DIR / 'paper' / 'param_sensitivity_heatmap.png', 'Parameter Sensitivity Heatmap'),
+        (FIGURES_DIR / 'paper-sources-2' / 'param_sensitivity_heatmap.png', 'Parameter Sensitivity Heatmap'),
     ]
 
     for fig_path, caption in ablation_figs:

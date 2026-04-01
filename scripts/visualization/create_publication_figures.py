@@ -17,7 +17,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Publication-quality style
-plt.style.use('seaborn-v0_8-paper')
+plt.style.use('seaborn-v0_8-paper-sources-2')
 sns.set_palette("husl")
 plt.rcParams.update({
     'figure.dpi': 300,

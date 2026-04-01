@@ -45,7 +45,7 @@ def load_hpo_results(runs_dir="results/hpo"):
     return results
 
 
-def generate_roc_curves_per_dataset(results, output_dir="figures/paper"):
+def generate_roc_curves_per_dataset(results, output_dir="figures/paper-sources-2"):
     """
     Generate ROC curves showing all algorithms for each classification dataset.
 
@@ -155,7 +155,7 @@ def generate_synthetic_roc(target_auc, n_points=100):
     return fpr, tpr
 
 
-def generate_combined_roc_comparison(results, output_dir="figures/paper"):
+def generate_combined_roc_comparison(results, output_dir="figures/paper-sources-2"):
     """
     Generate a combined ROC curve plot showing best algorithm for each dataset.
 
@@ -224,7 +224,7 @@ def generate_combined_roc_comparison(results, output_dir="figures/paper"):
     plt.close()
 
 
-def generate_roc_summary_table(results, output_dir="figures/paper"):
+def generate_roc_summary_table(results, output_dir="figures/paper-sources-2"):
     """Generate summary table of AUC-ROC scores for all algorithms and datasets."""
     import pandas as pd
 
@@ -300,7 +300,7 @@ def main():
     print("\n" + "=" * 70)
     print("ROC Curve Generation Complete!")
     print("=" * 70)
-    print("\nOutput files in figures/paper/:")
+    print("\nOutput files in figures/paper-sources-2/:")
     print("  - herg_roc_curves.png (all algorithms)")
     print("  - tox21_roc_curves.png (all algorithms)")
     print("  - roc_curves_best_comparison.png (best algorithms)")

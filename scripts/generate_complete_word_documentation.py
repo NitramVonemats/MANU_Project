@@ -1180,7 +1180,7 @@ Fine-tuning Configuration:
         ('figures/foundation/gnn_vs_foundation_comparison.png', 'Figure 8.1: GNN vs Foundation Models Comparison'),
         ('figures/foundation/foundation_ranking.png', 'Figure 8.2: Foundation Model Rankings'),
         ('figures/foundation/performance_heatmap.png', 'Figure 8.3: Performance Heatmap'),
-        ('figures/paper/foundation_comparison_with_finetune.png', 'Figure 8.4: Foundation Comparison with Fine-tuning'),
+        ('figures/paper-sources-2/foundation_comparison_with_finetune.png', 'Figure 8.4: Foundation Comparison with Fine-tuning'),
     ]
 
     for fig_path, caption in fm_figs:
@@ -1289,7 +1289,7 @@ Fine-tuning Configuration:
         ('figures/hpo/02_best_hyperparameters.png', 'Figure 9.2: Best Hyperparameters Found'),
         ('figures/hpo/03_winner_analysis.png', 'Figure 9.3: Winner Analysis'),
         ('figures/hpo/05_classification_performance.png', 'Figure 9.4: Classification Performance (Toxicity)'),
-        ('figures/paper/hpo_comparison_with_tpe.png', 'Figure 9.5: HPO Comparison with TPE'),
+        ('figures/paper-sources-2/hpo_comparison_with_tpe.png', 'Figure 9.5: HPO Comparison with TPE'),
     ]
 
     for fig_path, caption in hpo_figs:
@@ -1364,7 +1364,7 @@ Fine-tuning Configuration:
 
     add_heading(doc, '10.3 TPE Optimization History', 2)
 
-    tpe_fig = PROJECT_ROOT / 'figures' / 'paper' / 'tpe_optimization_history.png'
+    tpe_fig = PROJECT_ROOT / 'figures' / 'paper-sources-2' / 'tpe_optimization_history.png'
     add_image_safe(doc, str(tpe_fig), width=Inches(5.5), caption='Figure 10.1: TPE Optimization History')
 
     doc.add_page_break()
@@ -1510,7 +1510,7 @@ Statistical Measures:
 
     add_heading(doc, '12.3 Multi-Seed Visualization', 2)
 
-    ms_fig = PROJECT_ROOT / 'figures' / 'paper' / 'multi_seed_boxplots_updated.png'
+    ms_fig = PROJECT_ROOT / 'figures' / 'paper-sources-2' / 'multi_seed_boxplots_updated.png'
     add_image_safe(doc, str(ms_fig), width=Inches(5.5), caption='Figure 12.1: Multi-Seed Validation Boxplots (Updated)')
 
     doc.add_paragraph()
@@ -1564,7 +1564,7 @@ Statistical Measures:
     )
 
     doc.add_paragraph(
-        'Recommendation: Use GNN results (AUC=0.742) for paper. Report ChemBERTa limitation '
+        'Recommendation: Use GNN results (AUC=0.742) for paper-sources-2. Report ChemBERTa limitation '
         'as evidence of scaffold split sensitivity in transformer models.', style='Intense Quote'
     )
 
@@ -1589,17 +1589,17 @@ Statistical Measures:
 
     add_heading(doc, '12.4.4 Diagnostic Summary Visualization', 3)
 
-    diag_fig = PROJECT_ROOT / 'figures' / 'paper' / 'diagnostic_summary.png'
+    diag_fig = PROJECT_ROOT / 'figures' / 'paper-sources-2' / 'diagnostic_summary.png'
     add_image_safe(doc, str(diag_fig), width=Inches(6), caption='Figure 12.2: Diagnostic Findings Summary')
 
     doc.add_paragraph()
 
-    overfitting_fig = PROJECT_ROOT / 'figures' / 'paper' / 'chemberta_overfitting_analysis.png'
+    overfitting_fig = PROJECT_ROOT / 'figures' / 'paper-sources-2' / 'chemberta_overfitting_analysis.png'
     add_image_safe(doc, str(overfitting_fig), width=Inches(6), caption='Figure 12.3: ChemBERTa Overfitting Analysis')
 
     doc.add_paragraph()
 
-    final_comp_fig = PROJECT_ROOT / 'figures' / 'paper' / 'final_model_comparison.png'
+    final_comp_fig = PROJECT_ROOT / 'figures' / 'paper-sources-2' / 'final_model_comparison.png'
     add_image_safe(doc, str(final_comp_fig), width=Inches(6), caption='Figure 12.4: Final Model Comparison')
 
     doc.add_page_break()
@@ -1756,9 +1756,9 @@ Statistical Measures:
 
     for dataset in datasets_all:
         dataset_lower = dataset.lower()
-        fig_path = PROJECT_ROOT / 'figures' / 'paper' / f'{dataset_lower}_training_curve.png'
+        fig_path = PROJECT_ROOT / 'figures' / 'paper-sources-2' / f'{dataset_lower}_training_curve.png'
         if not fig_path.exists():
-            fig_path = PROJECT_ROOT / 'figures' / 'paper' / f'{dataset}_training_curve.png'
+            fig_path = PROJECT_ROOT / 'figures' / 'paper-sources-2' / f'{dataset}_training_curve.png'
         if fig_path.exists():
             add_image_safe(doc, str(fig_path), width=Inches(5),
                           caption=f'{dataset} Training Curve')
@@ -1767,7 +1767,7 @@ Statistical Measures:
     add_heading(doc, '15.3 ROC Curves (Classification)', 2)
 
     for dataset in ['tox21', 'herg']:
-        fig_path = PROJECT_ROOT / 'figures' / 'paper' / f'roc_curve_{dataset}.png'
+        fig_path = PROJECT_ROOT / 'figures' / 'paper-sources-2' / f'roc_curve_{dataset}.png'
         if fig_path.exists():
             add_image_safe(doc, str(fig_path), width=Inches(5),
                           caption=f'{dataset.upper()} ROC Curve')
@@ -1775,13 +1775,13 @@ Statistical Measures:
     # Confusion Matrices
     add_heading(doc, '15.4 Confusion Matrices', 2)
 
-    cm_fig = PROJECT_ROOT / 'figures' / 'paper' / 'confusion_matrices.png'
+    cm_fig = PROJECT_ROOT / 'figures' / 'paper-sources-2' / 'confusion_matrices.png'
     add_image_safe(doc, str(cm_fig), width=Inches(5.5), caption='Confusion Matrices')
 
     # Learning curves
     add_heading(doc, '15.5 Learning Curves', 2)
 
-    lc_fig = PROJECT_ROOT / 'figures' / 'paper' / 'learning_curves.png'
+    lc_fig = PROJECT_ROOT / 'figures' / 'paper-sources-2' / 'learning_curves.png'
     add_image_safe(doc, str(lc_fig), width=Inches(5.5), caption='Learning Curves')
 
     doc.add_page_break()

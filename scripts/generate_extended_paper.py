@@ -1,5 +1,5 @@
 """
-Generate EXTENDED Journal of Cheminformatics paper with ALL figures
+Generate EXTENDED Journal of Cheminformatics paper-sources-2 with ALL figures
 MANU Project - GNN ADMET Benchmark
 ~50+ pages with comprehensive appendices
 """
@@ -440,7 +440,7 @@ For classification, TPE achieved highest AUC on both Tox21 (0.742) and hERG (0.7
     doc.add_paragraph('')
 
     # Add HPO comparison figure
-    add_figure(doc, 'figures/paper/hpo_comparison_with_tpe.png',
+    add_figure(doc, 'figures/paper-sources-2/hpo_comparison_with_tpe.png',
                'Figure 1. HPO algorithm performance comparison across all datasets.')
 
     doc.add_paragraph('3.2 Multi-Seed Validation', style='H2')
@@ -475,7 +475,7 @@ Reproducibility was excellent across all datasets (CV = 1.5-7.9%). Tox21 showed 
 
     doc.add_paragraph('')
 
-    add_figure(doc, 'figures/paper/multi_seed_boxplots.png',
+    add_figure(doc, 'figures/paper-sources-2/multi_seed_boxplots.png',
                'Figure 2. Multi-seed validation boxplots showing performance distribution across 5 seeds.')
 
     doc.add_paragraph('3.3 Foundation Model Comparison', style='H2')
@@ -515,7 +515,7 @@ Key findings:
 
     doc.add_paragraph('')
 
-    add_figure(doc, 'figures/paper/foundation_comparison_with_finetune.png',
+    add_figure(doc, 'figures/paper-sources-2/foundation_comparison_with_finetune.png',
                'Figure 3. Foundation model comparison showing performance across all model types.')
 
     doc.add_paragraph('3.4 ChemBERTa Scaffold-Split Sensitivity', style='H2')
@@ -532,7 +532,7 @@ In contrast, the task-specific GNN maintained consistent validation-test perform
 
     doc.add_paragraph(chemberta_text)
 
-    add_figure(doc, 'figures/paper/chemberta_overfitting_analysis.png',
+    add_figure(doc, 'figures/paper-sources-2/chemberta_overfitting_analysis.png',
                'Figure 4. ChemBERTa overfitting analysis on Tox21 showing validation-test gap.')
 
     doc.add_paragraph('3.5 Learning Curves and Training Dynamics', style='H2')
@@ -546,7 +546,7 @@ In contrast, the task-specific GNN maintained consistent validation-test perform
 
     doc.add_paragraph(learning_text)
 
-    add_figure(doc, 'figures/paper/learning_curves.png',
+    add_figure(doc, 'figures/paper-sources-2/learning_curves.png',
                'Figure 5. Training and validation learning curves for best configurations.')
 
     doc.add_paragraph('3.6 Classification Performance Details', style='H2')
@@ -555,7 +555,7 @@ In contrast, the task-specific GNN maintained consistent validation-test perform
 
     doc.add_paragraph(class_text)
 
-    add_figure(doc, 'figures/paper/confusion_matrices.png',
+    add_figure(doc, 'figures/paper-sources-2/confusion_matrices.png',
                'Figure 6. Confusion matrices for Tox21 and hERG classification tasks.')
 
     doc.add_paragraph('3.7 HPO Efficiency Analysis', style='H2')
@@ -593,7 +593,7 @@ Table 6 summarizes efficiency metrics."""
 
     doc.add_paragraph('')
 
-    add_figure(doc, 'figures/paper/tpe_optimization_history.png',
+    add_figure(doc, 'figures/paper-sources-2/tpe_optimization_history.png',
                'Figure 7. TPE optimization history showing convergence across datasets.')
 
     doc.add_page_break()
@@ -778,8 +778,8 @@ These findings establish practical guidelines for ADMET prediction and methodolo
 
     doc.add_paragraph('Appendix A: Additional Performance Visualizations', style='H2')
 
-    # All paper figures
-    paper_figs = sorted(glob.glob('figures/paper/*.png'))
+    # All paper-sources-2 figures
+    paper_figs = sorted(glob.glob('figures/paper-sources-2/*.png'))
 
     fig_categories = {
         'Training Curves': ['training_curve', 'learning_curve'],

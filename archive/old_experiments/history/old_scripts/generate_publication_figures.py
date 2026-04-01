@@ -1,5 +1,5 @@
 """
-Generate publication-quality figures for the MANU paper
+Generate publication-quality figures for the MANU paper-sources-2
 Including: Learning curves, confusion matrices, HPO comparison with TPE
 """
 
@@ -30,7 +30,7 @@ plt.rcParams['axes.titlesize'] = 14
 plt.rcParams['legend.fontsize'] = 10
 plt.rcParams['figure.dpi'] = 150
 
-OUTPUT_DIR = os.path.join(project_root, 'figures', 'paper')
+OUTPUT_DIR = os.path.join(project_root, 'figures', 'paper-sources-2')
 
 COLORS = {
     'Random': '#2196F3',

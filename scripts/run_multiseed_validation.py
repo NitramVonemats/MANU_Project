@@ -1,6 +1,6 @@
 """
 Multi-seed validation for robustness assessment.
-Phase 4 of paper preparation.
+Phase 4 of paper-sources-2 preparation.
 
 Runs the optimized GNN model with multiple seeds to quantify variance.
 Uses the same scaffold splits but different random initialization.
@@ -236,11 +236,11 @@ def main():
     print(summary_df[['Dataset', 'Task', 'Primary_Metric', 'Mean_pm_Std']].to_string(index=False))
 
     # Generate LaTeX table
-    latex_dir = Path("figures/paper")
+    latex_dir = Path("figures/paper-sources-2")
     latex_dir.mkdir(parents=True, exist_ok=True)
     generate_latex_table(summary_df, latex_dir / 'multiseed_table.tex')
 
-    # Save as JSON for paper
+    # Save as JSON for paper-sources-2
     summary_json = summary_df.to_dict(orient='records')
     with open(output_dir / 'multiseed_summary.json', 'w') as f:
         json.dump(summary_json, f, indent=2)

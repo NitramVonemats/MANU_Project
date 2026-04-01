@@ -1,5 +1,5 @@
 """
-Generate comprehensive Journal of Cheminformatics paper
+Generate comprehensive Journal of Cheminformatics paper-sources-2
 MANU Project - GNN ADMET Benchmark
 """
 
@@ -936,7 +936,7 @@ Environment specifications are provided via requirements.txt and environment.yml
     doc.add_paragraph('Appendix A: Supplementary Figures', style='CustomH1')
 
     # Add figures
-    figures_dir = 'figures/paper'
+    figures_dir = 'figures/paper-sources-2'
     figure_files = [
         ('hpo_comparison_with_tpe.png', 'Figure A1. HPO algorithm performance comparison across all datasets. TPE (blue) consistently achieves the best or near-best performance across all six ADMET endpoints.'),
         ('learning_curves.png', 'Figure A2. Training and validation learning curves for the best configurations. Smooth convergence indicates stable training without severe overfitting.'),

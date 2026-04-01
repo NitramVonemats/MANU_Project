@@ -283,7 +283,7 @@ def main():
     print("="*80)
 
     # Create output directory
-    output_dir = "figures/paper"
+    output_dir = "figures/paper-sources-2"
     os.makedirs(output_dir, exist_ok=True)
 
     # Load data from extended HPO results

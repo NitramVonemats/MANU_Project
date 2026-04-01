@@ -18,7 +18,7 @@ plt.rcParams['axes.labelsize'] = 10
 plt.rcParams['figure.dpi'] = 150
 
 # Create output directory
-output_dir = Path("figures/paper")
+output_dir = Path("figures/paper-sources-2")
 output_dir.mkdir(parents=True, exist_ok=True)
 
 # ============================================================================

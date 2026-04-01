@@ -112,9 +112,9 @@ def main():
     for fig_name in final_figures:
         # Try multiple possible locations
         possible_paths = [
-            PROJECT_ROOT / "figures" / "paper" / fig_name,
+            PROJECT_ROOT / "figures" / "paper-sources-2" / fig_name,
             PROJECT_ROOT / "figures" / fig_name,
-            PROJECT_ROOT / "paper_1" / "images" / fig_name,
+            PROJECT_ROOT / "paper_final" / "images" / fig_name,
         ]
 
         for src in possible_paths:
@@ -183,7 +183,7 @@ def main():
 ## Project: MANU - Hyperparameter Optimization for Molecular GNNs
 
 **Last Updated:** {}
-**Paper:** paper_1/main.tex
+**Paper:** paper_final/main.tex
 
 ## Key Findings
 
@@ -214,7 +214,7 @@ def main():
 
 ## Files Location
 
-- **Final Paper:** `paper_1/main.tex`
+- **Final Paper:** `paper_final/main.tex`
 - **HPO Results:** `results/hpo/[DATASET]/hpo_[DATASET]_[ALGORITHM].json`
 - **Figures:** `results/figures/`
 - **Multi-Seed Validation:** `results/hpo/[DATASET]/multiseed_*.json`
@@ -252,10 +252,10 @@ This project presents a comprehensive benchmarking framework for Graph Neural Ne
 
 ## Publication
 
-📄 **Paper:** `paper_1/main.tex` (LaTeX format)
+📄 **Paper:** `paper_final/main.tex` (LaTeX format)
 - Authors: Martin, Mila, Adrian, Viktorija, Ilinka
 - Status: Ready for publication
-- Figures: `paper_1/images/`
+- Figures: `paper_final/images/`
 
 ## Results
 
@@ -287,7 +287,7 @@ All final results are located in `results/`:
 
 ```
 MANU/
-├── paper_1/              Final paper (LaTeX)
+├── paper_final/              Final paper-sources-2 (LaTeX)
 ├── results/              Final results
 │   ├── hpo/             HPO result files
 │   ├── figures/         Publication figures
@@ -352,7 +352,7 @@ See `requirements.txt` for dependencies.
     print(f"  ✓ results/ - Final results ({len(hpo_files)} HPO files, {len(fig_files)} figures)")
     print(f"  ✓ docs/ - Documentation")
     print(f"  ✓ archive/ - Old files")
-    print(f"  ✓ paper_1/ - Final paper")
+    print(f"  ✓ paper_final/ - Final paper-sources-2")
     print(f"  ✓ scripts/ - Production scripts")
 
     print(f"\n✅ Next Steps:")

@@ -82,7 +82,7 @@ def verify_class_balance():
 
     # Summary table
     print("\n" + "=" * 80)
-    print("SUMMARY TABLE (for paper)")
+    print("SUMMARY TABLE (for paper-sources-2)")
     print("=" * 80)
     print(f"{'Dataset':<15} {'Total':<8} {'Train':<8} {'Val':<6} {'Test':<6} {'Pos%':<8}")
     print("-" * 60)

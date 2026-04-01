@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate ALL paper figures from existing HPO JSON and foundation CSV data.
+Generate ALL paper-sources-2 figures from existing HPO JSON and foundation CSV data.
 NO training — read-only from existing results.
 """
 import json
@@ -27,8 +27,8 @@ FOUNDATION_CSV = os.path.join(
     BASE, "archive", "old_experiments", "history", "old_results",
     "foundation_comparison_UPDATED_20260129_200243.csv"
 )
-OUT_PAPER1 = os.path.join(BASE, "paper_1", "images")
-OUT_FIG = os.path.join(BASE, "figures", "paper")
+OUT_PAPER1 = os.path.join(BASE, "paper_final", "images")
+OUT_FIG = os.path.join(BASE, "figures", "paper-sources-2")
 
 os.makedirs(OUT_PAPER1, exist_ok=True)
 os.makedirs(OUT_FIG, exist_ok=True)

@@ -150,7 +150,7 @@ def plot_confusion_matrix(cm, dataset_name, algorithm, metrics, output_path):
     plt.close()
 
 
-def generate_confusion_matrices_best(results, output_dir="figures/paper"):
+def generate_confusion_matrices_best(results, output_dir="figures/paper-sources-2"):
     """
     Generate confusion matrices for the best algorithm per dataset.
 
@@ -201,7 +201,7 @@ def generate_confusion_matrices_best(results, output_dir="figures/paper"):
             plot_confusion_matrix(cm, dataset_name, algo_display, best_metrics, output_file)
 
 
-def generate_confusion_matrices_all_algorithms(results, output_dir="figures/paper"):
+def generate_confusion_matrices_all_algorithms(results, output_dir="figures/paper-sources-2"):
     """
     Generate a grid of confusion matrices showing all algorithms for each dataset.
 
@@ -298,7 +298,7 @@ def generate_confusion_matrices_all_algorithms(results, output_dir="figures/pape
         plt.close()
 
 
-def generate_confusion_matrix_comparison(results, output_dir="figures/paper"):
+def generate_confusion_matrix_comparison(results, output_dir="figures/paper-sources-2"):
     """
     Generate side-by-side confusion matrices for best algorithms on both datasets.
 
@@ -413,7 +413,7 @@ def main():
     print("\n" + "=" * 70)
     print("Confusion Matrix Generation Complete!")
     print("=" * 70)
-    print("\nOutput files in figures/paper/:")
+    print("\nOutput files in figures/paper-sources-2/:")
     print("  - herg_confusion_matrix_best.png")
     print("  - tox21_confusion_matrix_best.png")
     print("  - herg_confusion_matrices_all.png (6 algorithms)")
