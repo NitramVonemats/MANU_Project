@@ -265,14 +265,6 @@ Splitting: Bemis-Murcko scaffold split (80/10/10 train/val/test), seed 42.
 
 ---
 
-## Documentation
-
-Full project documentation: [`docs/DOCUMENTATION.md`](docs/DOCUMENTATION.md) (~40 pages)
-
-Covers: methodology, model architecture, datasets, HPO algorithms, foundation models, results analysis, reproducibility, and API reference.
-
----
-
 
 ## License
 
