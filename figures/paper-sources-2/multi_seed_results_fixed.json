@@ -1,0 +1,15 @@
+{
+  "provenance": {
+    "source": "docs/DOCUMENTATION.md Appendix H",
+    "note": "Reconstructed evidence file from documented per-seed values already present in the repository. This is not a new training run."
+  },
+  "seeds": [42, 123, 456, 789, 1011],
+  "results": {
+    "Caco2_Wang": {"task": "regression", "primary_metric": "RMSE", "values": [0.0041, 0.0034, 0.0026, 0.0032, 0.0030], "mean": 0.0033, "std": 0.0005, "ci95": [0.0027, 0.0039]},
+    "Half_Life_Obach": {"task": "regression", "primary_metric": "RMSE", "values": [19.51, 21.83, 19.15, 19.22, 20.56], "mean": 20.05, "std": 1.17, "ci95": [18.61, 21.50]},
+    "Clearance_Hepatocyte_AZ": {"task": "regression", "primary_metric": "RMSE", "values": [53.92, 56.32, 48.74, 52.46, 50.40], "mean": 52.37, "std": 2.87, "ci95": [48.81, 55.93]},
+    "Clearance_Microsome_AZ": {"task": "regression", "primary_metric": "RMSE", "values": [53.74, 41.02, 78.85, 51.30, 42.40], "mean": 53.46, "std": 13.56, "ci95": [36.63, 70.30]},
+    "tox21": {"task": "classification", "primary_metric": "AUC", "values": [0.726, 0.724, 0.693, 0.705, 0.710], "mean": 0.711, "std": 0.012, "ci95": [0.696, 0.727]},
+    "herg": {"task": "classification", "primary_metric": "AUC", "values": [0.809, 0.791, 0.817, 0.837, 0.772], "mean": 0.805, "std": 0.022, "ci95": [0.778, 0.832]}
+  }
+}

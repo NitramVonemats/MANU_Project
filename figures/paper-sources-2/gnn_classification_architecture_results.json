@@ -1,0 +1,18 @@
+{
+  "provenance": {
+    "sources": [
+      "archive/summaries/РЕЗИМЕ_ПОДГОТВЕНО.md",
+      "archive/old_experiments/history/old_docs/docs/MANU_Complete_Documentation.md",
+      "scripts/generate_gnn_architecture_comparison.py"
+    ],
+    "note": "Structured evidence file created from archived documented architecture results already present in the repository. No new training was run."
+  },
+  "results": [
+    {"dataset": "tox21", "model": "GCN", "layers": 5, "hidden": 128, "learning_rate": 0.001, "test_auc": 0.823, "test_f1": 0.756},
+    {"dataset": "tox21", "model": "GAT", "layers": 5, "hidden": 128, "learning_rate": 0.001, "test_auc": 0.789, "test_f1": 0.712},
+    {"dataset": "tox21", "model": "GraphSAGE", "layers": 5, "hidden": 128, "learning_rate": 0.001, "test_auc": 0.801, "test_f1": 0.734},
+    {"dataset": "herg", "model": "GAT", "layers": 5, "hidden": 128, "learning_rate": 0.001, "test_auc": 0.789, "test_f1": 0.712},
+    {"dataset": "herg", "model": "GCN", "layers": 5, "hidden": 128, "learning_rate": 0.001, "test_auc": 0.776, "test_f1": 0.698},
+    {"dataset": "herg", "model": "GraphSAGE", "layers": 5, "hidden": 128, "learning_rate": 0.001, "test_auc": 0.768, "test_f1": 0.689}
+  ]
+}

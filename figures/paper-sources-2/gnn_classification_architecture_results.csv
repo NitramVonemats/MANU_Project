@@ -1,0 +1,7 @@
+dataset,model,layers,hidden,learning_rate,test_auc,test_f1,source
+tox21,GCN,5,128,0.001,0.823,0.756,archive/summaries/РЕЗИМЕ_ПОДГОТВЕНО.md and scripts/generate_gnn_architecture_comparison.py
+tox21,GAT,5,128,0.001,0.789,0.712,scripts/generate_gnn_architecture_comparison.py and archive/old_experiments/history/old_docs/docs/MANU_Complete_Documentation.md
+tox21,GraphSAGE,5,128,0.001,0.801,0.734,scripts/generate_gnn_architecture_comparison.py and archive/old_experiments/history/old_docs/docs/MANU_Complete_Documentation.md
+herg,GAT,5,128,0.001,0.789,0.712,archive/summaries/РЕЗИМЕ_ПОДГОТВЕНО.md and scripts/generate_gnn_architecture_comparison.py
+herg,GCN,5,128,0.001,0.776,0.698,scripts/generate_gnn_architecture_comparison.py and archive/old_experiments/history/old_docs/docs/MANU_Complete_Documentation.md
+herg,GraphSAGE,5,128,0.001,0.768,0.689,scripts/generate_gnn_architecture_comparison.py and archive/old_experiments/history/old_docs/docs/MANU_Complete_Documentation.md

@@ -1,0 +1,7 @@
+dataset,task,primary_metric,mean,std,ci95_low,ci95_high,source
+Caco2_Wang,regression,RMSE,0.0033,0.0005,0.0027,0.0039,docs/DOCUMENTATION.md Appendix H
+Half_Life_Obach,regression,RMSE,20.05,1.17,18.61,21.50,docs/DOCUMENTATION.md Appendix H
+Clearance_Hepatocyte_AZ,regression,RMSE,52.37,2.87,48.81,55.93,docs/DOCUMENTATION.md Appendix H
+Clearance_Microsome_AZ,regression,RMSE,53.46,13.56,36.63,70.30,docs/DOCUMENTATION.md Appendix H
+tox21,classification,AUC,0.711,0.012,0.696,0.727,docs/DOCUMENTATION.md Appendix H
+herg,classification,AUC,0.805,0.022,0.778,0.832,docs/DOCUMENTATION.md Appendix H
