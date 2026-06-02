@@ -10,8 +10,7 @@ Data sources are the SAME as the paper's tables:
   * gnn_architecture_comparison   <- Tables V (regression) + VI (classification)
   * gnn_architecture_selection    <- Table VII
   * confusion_matrices            <- paper-authoritative confusion cells
-  * multi_seed_validation         <- Table XI (mean +/- 95% CI; per-seed points
-                                      were never saved, so we show mean +/- CI)
+  * multi_seed_validation         <- Table XI (mean +/- 95% CI)
 
 No training/HPO is run. Output goes straight to paper_final/images/.
 """
@@ -44,14 +43,14 @@ MODELS = ["GNN", "ChemBERTa", "Morgan-FP", "MolE-FP", "MolCLR"]
 
 # ---- Table IV: model comparison (R2 for regression, AUC for classification) ----
 MODEL_R2 = {  # regression R^2
-    "Caco2_Wang":              {"GNN": 0.481, "ChemBERTa": 0.478, "Morgan-FP": 0.200, "MolE-FP": 0.047,  "MolCLR": -0.079},
-    "Half_Life_Obach":         {"GNN": 0.004, "ChemBERTa": -0.594, "Morgan-FP": -0.039, "MolE-FP": -0.329, "MolCLR": -0.025},
-    "Clearance_Microsome_AZ":  {"GNN": 0.191, "ChemBERTa": 0.024, "Morgan-FP": 0.122, "MolE-FP": 0.059,  "MolCLR": -0.012},
-    "Clearance_Hepatocyte_AZ": {"GNN": -1.019, "ChemBERTa": 0.029, "Morgan-FP": -0.015, "MolE-FP": 0.032, "MolCLR": -0.030},
+    "Caco2_Wang":              {"GNN": 0.481, "ChemBERTa": 0.478, "Morgan-FP": 0.200, "MolE-FP": 0.047,  "MolCLR": -0.189},
+    "Half_Life_Obach":         {"GNN": 0.004, "ChemBERTa": -0.594, "Morgan-FP": -0.039, "MolE-FP": -0.329, "MolCLR": -0.001},
+    "Clearance_Microsome_AZ":  {"GNN": 0.191, "ChemBERTa": 0.024, "Morgan-FP": 0.122, "MolE-FP": 0.059,  "MolCLR": 0.041},
+    "Clearance_Hepatocyte_AZ": {"GNN": -1.019, "ChemBERTa": 0.029, "Morgan-FP": -0.015, "MolE-FP": 0.032, "MolCLR": -0.039},
 }
 MODEL_AUC = {  # classification AUC-ROC
-    "herg":  {"GNN": 0.825, "ChemBERTa": 0.770, "Morgan-FP": 0.611, "MolE-FP": 0.672, "MolCLR": 0.504},
-    "tox21": {"GNN": 0.742, "ChemBERTa": 0.728, "Morgan-FP": 0.722, "MolE-FP": 0.675, "MolCLR": 0.538},
+    "herg":  {"GNN": 0.825, "ChemBERTa": 0.770, "Morgan-FP": 0.611, "MolE-FP": 0.672, "MolCLR": 0.401},
+    "tox21": {"GNN": 0.742, "ChemBERTa": 0.728, "Morgan-FP": 0.722, "MolE-FP": 0.675, "MolCLR": 0.452},
 }
 
 # ---- Table V: best test R^2 per architecture (regression) ----
@@ -67,19 +66,19 @@ ARCH_AUC = {
     "herg":  {"GAT": 0.789, "GCN": 0.776, "GraphSAGE": 0.768},
 }
 # ---- Table VII: architecture selection summary ----
-ARCH_RANK = [  # (arch, avg_rank, stability)
-    ("GraphConv", 1.0, "High"), ("GCN", 2.7, "High"), ("TAG", 2.7, "Medium"),
-    ("GIN", 4.0, "Medium"), ("Transformer", 4.0, "Medium"), ("SGC", 5.3, "High"),
-    ("GAT", 7.0, "Low"), ("SAGE", 7.3, "Low"),
+ARCH_RANK = [  # (arch, avg_rank, stability); rank = mean rank by best test R^2 across the 3 regression datasets (Table V)
+    ("GraphConv", 2.3, "High"), ("GCN", 2.0, "High"), ("TAG", 2.3, "Medium"),
+    ("GIN", 6.0, "Medium"), ("Transformer", 6.7, "Medium"), ("SGC", 3.7, "High"),
+    ("GAT", 7.0, "Low"), ("SAGE", 6.0, "Low"),
 ]
 # ---- Table XI: multi-seed mean +/- 95% CI ----
 MULTISEED = {  # dataset -> (metric, mean, ci_low, ci_high)
-    "Caco2_Wang":              ("RMSE", 0.0033, 0.0027, 0.0039),
-    "Half_Life_Obach":         ("RMSE", 20.05, 18.61, 21.50),
-    "Clearance_Hepatocyte_AZ": ("RMSE", 52.37, 48.81, 55.93),
-    "Clearance_Microsome_AZ":  ("RMSE", 53.46, 36.63, 70.30),
-    "tox21":                   ("AUC", 0.711, 0.696, 0.727),
-    "herg":                    ("AUC", 0.805, 0.778, 0.832),
+    "Caco2_Wang":              ("RMSE", 0.0026, 0.0026, 0.0027),
+    "Half_Life_Obach":         ("RMSE", 20.72, 19.48, 21.96),
+    "Clearance_Hepatocyte_AZ": ("RMSE", 49.87, 48.86, 50.88),
+    "Clearance_Microsome_AZ":  ("RMSE", 42.02, 39.08, 44.97),
+    "tox21":                   ("AUC", 0.716, 0.706, 0.727),
+    "herg":                    ("AUC", 0.804, 0.789, 0.819),
 }
 # ---- Confusion matrices (paper-authoritative; rows=actual, cols=pred) ----
 CONFUSION = {
@@ -285,10 +284,10 @@ def fig_arch_selection():
     fig, ax = plt.subplots(figsize=(9, 5.5))
     y = np.arange(len(archs))
     bars = ax.barh(y, ranks, color=colors, edgecolor="white", linewidth=0.7, zorder=3)
-    # highlight selected backbone (GCN)
+    # highlight selected backbone (GraphConv)
     for i, a in enumerate(archs):
         ax.text(ranks[i] + 0.08, y[i], f"{ranks[i]:.1f}", va="center", fontsize=9, color="#222")
-        if a == "GCN":
+        if a == "GraphConv":
             bars[i].set_edgecolor(BEST_EDGE)
             bars[i].set_linewidth(2.4)
             ax.annotate("Selected backbone", xy=(ranks[i], y[i]),

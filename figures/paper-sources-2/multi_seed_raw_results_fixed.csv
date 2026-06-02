@@ -1,31 +1,31 @@
 dataset,task,seed,metric,rmse_log,mae_log,rmse_orig,auc_roc,source
-Caco2_Wang,regression,42,RMSE,0.840,0.671,0.0041,,docs/DOCUMENTATION.md Appendix H
-Caco2_Wang,regression,123,RMSE,0.594,0.449,0.0034,,docs/DOCUMENTATION.md Appendix H
-Caco2_Wang,regression,456,RMSE,0.432,0.347,0.0026,,docs/DOCUMENTATION.md Appendix H
-Caco2_Wang,regression,789,RMSE,0.577,0.434,0.0032,,docs/DOCUMENTATION.md Appendix H
-Caco2_Wang,regression,1011,RMSE,0.543,0.420,0.0030,,docs/DOCUMENTATION.md Appendix H
-Half_Life_Obach,regression,42,RMSE,1.133,0.874,19.51,,docs/DOCUMENTATION.md Appendix H
-Half_Life_Obach,regression,123,RMSE,1.383,1.104,21.83,,docs/DOCUMENTATION.md Appendix H
-Half_Life_Obach,regression,456,RMSE,1.146,0.903,19.15,,docs/DOCUMENTATION.md Appendix H
-Half_Life_Obach,regression,789,RMSE,1.149,0.866,19.22,,docs/DOCUMENTATION.md Appendix H
-Half_Life_Obach,regression,1011,RMSE,1.537,1.235,20.56,,docs/DOCUMENTATION.md Appendix H
-Clearance_Hepatocyte_AZ,regression,42,RMSE,1.391,1.117,53.92,,docs/DOCUMENTATION.md Appendix H
-Clearance_Hepatocyte_AZ,regression,123,RMSE,1.408,1.126,56.32,,docs/DOCUMENTATION.md Appendix H
-Clearance_Hepatocyte_AZ,regression,456,RMSE,1.220,1.015,48.74,,docs/DOCUMENTATION.md Appendix H
-Clearance_Hepatocyte_AZ,regression,789,RMSE,1.350,1.117,52.46,,docs/DOCUMENTATION.md Appendix H
-Clearance_Hepatocyte_AZ,regression,1011,RMSE,1.308,1.079,50.40,,docs/DOCUMENTATION.md Appendix H
-Clearance_Microsome_AZ,regression,42,RMSE,1.396,1.174,53.74,,docs/DOCUMENTATION.md Appendix H
-Clearance_Microsome_AZ,regression,123,RMSE,1.185,1.028,41.02,,docs/DOCUMENTATION.md Appendix H
-Clearance_Microsome_AZ,regression,456,RMSE,1.782,1.531,78.85,,docs/DOCUMENTATION.md Appendix H
-Clearance_Microsome_AZ,regression,789,RMSE,1.357,1.172,51.30,,docs/DOCUMENTATION.md Appendix H
-Clearance_Microsome_AZ,regression,1011,RMSE,1.176,0.944,42.40,,docs/DOCUMENTATION.md Appendix H
-tox21,classification,42,AUC,,,,0.726,docs/DOCUMENTATION.md Appendix H
-tox21,classification,123,AUC,,,,0.724,docs/DOCUMENTATION.md Appendix H
-tox21,classification,456,AUC,,,,0.693,docs/DOCUMENTATION.md Appendix H
-tox21,classification,789,AUC,,,,0.705,docs/DOCUMENTATION.md Appendix H
-tox21,classification,1011,AUC,,,,0.710,docs/DOCUMENTATION.md Appendix H
-herg,classification,42,AUC,,,,0.809,docs/DOCUMENTATION.md Appendix H
-herg,classification,123,AUC,,,,0.791,docs/DOCUMENTATION.md Appendix H
-herg,classification,456,AUC,,,,0.817,docs/DOCUMENTATION.md Appendix H
-herg,classification,789,AUC,,,,0.837,docs/DOCUMENTATION.md Appendix H
-herg,classification,1011,AUC,,,,0.772,docs/DOCUMENTATION.md Appendix H
+Caco2_Wang,regression,42,RMSE,0.5477220242737014,0.43637940287590027,0.002638595121614629,,results/multi_seed/multi_seed_results_fixed.json
+Caco2_Wang,regression,123,RMSE,0.3999132427365235,0.313994824886322,0.0025644454870483407,,results/multi_seed/multi_seed_results_fixed.json
+Caco2_Wang,regression,456,RMSE,0.5000442842899698,0.40663376450538635,0.0027848039577795794,,results/multi_seed/multi_seed_results_fixed.json
+Caco2_Wang,regression,789,RMSE,0.43256997912196565,0.3414163589477539,0.0025994983121404224,,results/multi_seed/multi_seed_results_fixed.json
+Caco2_Wang,regression,1011,RMSE,0.45508634371560186,0.34786245226860046,0.0026593124949718075,,results/multi_seed/multi_seed_results_fixed.json
+Half_Life_Obach,regression,42,RMSE,1.173216547780304,0.8725509643554688,22.126302734643176,,results/multi_seed/multi_seed_results_fixed.json
+Half_Life_Obach,regression,123,RMSE,1.1336389618052838,0.8852425813674927,18.089427477800655,,results/multi_seed/multi_seed_results_fixed.json
+Half_Life_Obach,regression,456,RMSE,1.170248657848401,0.9066700339317322,21.156759191158184,,results/multi_seed/multi_seed_results_fixed.json
+Half_Life_Obach,regression,789,RMSE,1.2763685417605908,1.0091941356658936,21.670759704539087,,results/multi_seed/multi_seed_results_fixed.json
+Half_Life_Obach,regression,1011,RMSE,1.452446317616335,1.1602154970169067,20.571066883480043,,results/multi_seed/multi_seed_results_fixed.json
+Clearance_Hepatocyte_AZ,regression,42,RMSE,1.35781529714913,1.0933760404586792,51.35049217753419,,results/multi_seed/multi_seed_results_fixed.json
+Clearance_Hepatocyte_AZ,regression,123,RMSE,1.3402295683171692,1.1208044290542603,49.37400364896617,,results/multi_seed/multi_seed_results_fixed.json
+Clearance_Hepatocyte_AZ,regression,456,RMSE,1.4691617672572213,1.1807012557983398,48.70599225599069,,results/multi_seed/multi_seed_results_fixed.json
+Clearance_Hepatocyte_AZ,regression,789,RMSE,1.3652890348611748,1.1164982318878174,48.76689410796529,,results/multi_seed/multi_seed_results_fixed.json
+Clearance_Hepatocyte_AZ,regression,1011,RMSE,1.3685827492730083,1.148042917251587,51.14964211675264,,results/multi_seed/multi_seed_results_fixed.json
+Clearance_Microsome_AZ,regression,42,RMSE,1.123588789513961,0.9277842044830322,41.51710984830531,,results/multi_seed/multi_seed_results_fixed.json
+Clearance_Microsome_AZ,regression,123,RMSE,1.1746541955057093,0.988305389881134,37.101884112366854,,results/multi_seed/multi_seed_results_fixed.json
+Clearance_Microsome_AZ,regression,456,RMSE,1.1947893481355414,1.030044674873352,40.781284422878194,,results/multi_seed/multi_seed_results_fixed.json
+Clearance_Microsome_AZ,regression,789,RMSE,1.7720297044498885,1.577243685722351,47.371021435841975,,results/multi_seed/multi_seed_results_fixed.json
+Clearance_Microsome_AZ,regression,1011,RMSE,1.136467660130808,0.977952778339386,43.350501625828244,,results/multi_seed/multi_seed_results_fixed.json
+tox21,classification,42,AUC,,,,0.7130599940932654,results/multi_seed/multi_seed_results_fixed.json
+tox21,classification,123,AUC,,,,0.7348945444176265,results/multi_seed/multi_seed_results_fixed.json
+tox21,classification,456,AUC,,,,0.698333893454727,results/multi_seed/multi_seed_results_fixed.json
+tox21,classification,789,AUC,,,,0.7230912590510525,results/multi_seed/multi_seed_results_fixed.json
+tox21,classification,1011,AUC,,,,0.7122860081675884,results/multi_seed/multi_seed_results_fixed.json
+herg,classification,42,AUC,,,,0.8269513991163476,results/multi_seed/multi_seed_results_fixed.json
+herg,classification,123,AUC,,,,0.8078055964653903,results/multi_seed/multi_seed_results_fixed.json
+herg,classification,456,AUC,,,,0.7889543446244478,results/multi_seed/multi_seed_results_fixed.json
+herg,classification,789,AUC,,,,0.8169366715758468,results/multi_seed/multi_seed_results_fixed.json
+herg,classification,1011,AUC,,,,0.7792341678939617,results/multi_seed/multi_seed_results_fixed.json

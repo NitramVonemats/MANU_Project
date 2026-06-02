@@ -67,11 +67,13 @@ plt.rcParams.update({
     'savefig.facecolor': 'white',
 })
 
-blues_cmap = plt.cm.Blues
-algo_colors = {
-    a: blues_cmap(0.3 + 0.7 * i / (len(ALGORITHMS) - 1))
-    for i, a in enumerate(ALGORITHMS)
-}
+import sys as _sys
+_sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from viz_palette import ALGORITHM_COLORS, MODEL_COLORS, color_for_dataset  # noqa: E402
+from matplotlib.colors import to_rgba as _to_rgba  # noqa: E402
+
+# Consistent algorithm colors, shared with every other paper figure.
+algo_colors = {a: ALGORITHM_COLORS[ALGO_LABELS[a]] for a in ALGORITHMS}
 
 # ============================================================
 # DATA LOADING
@@ -362,8 +364,7 @@ def fig5_gnn_vs_foundation():
         'GNN-Best': 'GNN (Ours)', 'Morgan-FP': 'Morgan-FP',
         'ChemBERTa': 'ChemBERTa', 'MolE-FP': 'MolE-FP', 'MolCLR': 'MolCLR'
     }
-    teal = plt.cm.GnBu
-    mcols = {m: teal(0.3 + 0.7 * i / (len(models) - 1)) for i, m in enumerate(models)}
+    mcols = {m: MODEL_COLORS.get(m, "#8C8C8C") for m in models}
 
     def _val(row_df, col):
         if len(row_df) == 0:
@@ -578,17 +579,17 @@ def fig8_sankey():
             Path(verts, codes), fc=color, alpha=alpha, ec='none'))
 
     # --- data ---
-    total = 11805;  adme_tot = 3892;  tox_tot = 7913
-    adme_ds = [('Caco2_Wang', 910), ('Half_Life_Obach', 667),
-               ('CL_Hepatocyte', 1213), ('CL_Microsome', 1102)]
-    tox_ds  = [('Tox21', 7258), ('hERG', 655)]
+    total = 11805;  adme_tot = 3504;  tox_tot = 7123
+    adme_ds = [('Caco2_Wang', 819), ('Half_Life_Obach', 601),
+               ('CL_Hepatocyte', 1092), ('CL_Microsome', 992)]
+    tox_ds  = [('Tox21', 6533), ('hERG', 590)]
     splits = {
-        'Caco2_Wang':    (637, 91, 182),
-        'Half_Life_Obach': (466, 66, 135),
-        'CL_Hepatocyte': (849, 121, 243),
-        'CL_Microsome':  (771, 110, 221),
-        'Tox21':         (5080, 725, 1453),
-        'hERG':          (458, 65, 132),
+        'Caco2_Wang':    (574, 63, 182),
+        'Half_Life_Obach': (420, 46, 135),
+        'CL_Hepatocyte': (765, 84, 243),
+        'CL_Microsome':  (694, 77, 221),
+        'Tox21':         (4572, 508, 1453),
+        'hERG':          (413, 45, 132),
     }
 
     S = 12.0 / total   # vertical scale
@@ -622,8 +623,9 @@ def fig8_sankey():
             h = size * child_scale
             cy -= h
             ci = intensity_start + 0.12 * i
-            box(x_right, cy, 1.7, h, f'{name}\n({size:,})', bc(ci), 8)
-            flow(x_left, cy, h, x_right, cy, h, bc(ci))
+            dcol = _to_rgba(color_for_dataset(name, "#999999"))
+            box(x_right, cy, 1.7, h, f'{name}\n({size:,})', dcol, 8)
+            flow(x_left, cy, h, x_right, cy, h, dcol)
             positions.append((name, cy, h))
             cy -= gap
         return positions
@@ -644,12 +646,12 @@ def fig8_sankey():
         bx = 8.5
         by = cy
         box(bx, by + va_h + te_h, 1.3, tr_h,
-            f'Train\n({tr})', bc(0.35), 7)
+            f'Train\n({tr})', _to_rgba("#D9D9D9"), 7)
         box(bx, by + te_h, 1.3, va_h,
-            f'Val\n({va})', bc(0.50), 7)
+            f'Val\n({va})', _to_rgba("#B0B0B0"), 7)
         box(bx, by, 1.3, te_h,
-            f'Test\n({te})', bc(0.65), 7)
-        flow(7.7, cy, h, 8.5, cy, h, bc(0.40), 0.15)
+            f'Test\n({te})', _to_rgba("#888888"), 7)
+        flow(7.7, cy, h, 8.5, cy, h, _to_rgba(color_for_dataset(name, "#999999")), 0.15)
 
     ax.set_title('Dataset Flow: TDC Repository \u2192 Task-Specific Splits',
                  fontsize=14, fontweight='bold', pad=15)

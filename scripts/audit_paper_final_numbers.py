@@ -126,15 +126,16 @@ def main() -> int:
     print("\n# Table XI: multi-seed values")
     ms_summary = {r["dataset"]: r for r in csv_rows("figures/paper-sources-2/multi_seed_summary_fixed.csv")}
     for dataset, expected in {
-        "Caco2_Wang": (0.0033, 0.0005, 0.0027, 0.0039),
-        "Half_Life_Obach": (20.05, 1.17, 18.61, 21.50),
-        "Clearance_Hepatocyte_AZ": (52.37, 2.87, 48.81, 55.93),
-        "Clearance_Microsome_AZ": (53.46, 13.56, 36.63, 70.30),
-        "tox21": (0.711, 0.012, 0.696, 0.727),
-        "herg": (0.805, 0.022, 0.778, 0.832),
+        "Caco2_Wang": (0.0026, 0.0001, 0.0026, 0.0027),
+        "Half_Life_Obach": (20.72, 1.42, 19.48, 21.96),
+        "Clearance_Hepatocyte_AZ": (49.87, 1.15, 48.86, 50.88),
+        "Clearance_Microsome_AZ": (42.02, 3.36, 39.08, 44.97),
+        "tox21": (0.716, 0.012, 0.706, 0.727),
+        "herg": (0.804, 0.018, 0.789, 0.819),
     }.items():
         row = ms_summary[dataset]
-        actual = tuple(round(float(row[k]), 4) for k in ["mean", "std", "ci95_low", "ci95_high"])
+        precision = 4 if dataset == "Caco2_Wang" else (3 if row["primary_metric"] == "AUC" else 2)
+        actual = tuple(round(float(row[k]), precision) for k in ["mean", "std", "ci95_low", "ci95_high"])
         failures += not ok(f"multiseed summary {dataset}", expected, actual)
 
     ms_json = json_obj("figures/paper-sources-2/multi_seed_results_fixed.json")
@@ -157,7 +158,7 @@ def main() -> int:
 
     arch_script = (ROOT / "scripts/generate_gnn_architecture_comparison.py").read_text(encoding="utf-8")
     for needle in ["'Test_AUC': [0.823, 0.789, 0.801]", "'Test_F1': [0.756, 0.712, 0.734]",
-                   "'Test_AUC': [0.789, 0.776, 0.768]", "'Avg_Rank': [1.0, 2.7, 2.7, 4.0, 5.3, 4.0, 7.0, 7.3]"]:
+                   "'Test_AUC': [0.789, 0.776, 0.768]", "'Avg_Rank': [2.3, 2.0, 2.3, 6.0, 3.7, 6.7, 7.0, 6.0]"]:
         failures += not ok(f"architecture source contains {needle[:30]}", True, needle in arch_script)
 
     print(f"\nTOTAL FAILURES: {failures}")

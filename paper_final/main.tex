@@ -42,12 +42,12 @@ Ilinka Ivanoska\IEEEauthorrefmark{1}
 \IEEEauthorblockA{\IEEEauthorrefmark{1} %1st affiliation
 Faculty of Computer Science and Engineering, Ss Cyril and Methodius University, Skopje, N. Macedonia}
 
-\IEEEauthorblockA{\IEEEauthorrefmark{2} %1st affiliation
-Graduate School of Life Sciences, Utrecht University}
+\IEEEauthorblockA{\IEEEauthorrefmark{2} %2nd affiliation
+Graduate School of Life Sciences, Utrecht University, Utrecht, The Netherlands}
 
 martin.stamenov@students.finki.ukim.mk, mila.gjurovska@students.finki.ukim.mk, v.vodilovska@studentsuu.nl, ilinka.ivanoska@finki.ukim.mk
 
-\thanks{Viktorija Vodilovska/Ilinka Ivanoska? is the corresponding author.}
+\thanks{Ilinka Ivanoska is the corresponding author.} % TODO: confirm corresponding author
 \thanks{Martin Stamenov and Mila Gjurovska contributed equally.}
 \thanks{Supported by Faculty of Computer Science and Engineering, Skopje, N. Macedonia.}
 }
@@ -55,9 +55,9 @@ martin.stamenov@students.finki.ukim.mk, mila.gjurovska@students.finki.ukim.mk, v
 \maketitle
 
 \begin{abstract}
-Despite growing interest in AI-assisted drug discovery, it remains poorly understood when molecular structure alone provides sufficient signal for reliable ADMET property prediction and how model selection should be tailored to specific endpoints. This study investigates the task-dependent performance of graph neural networks (GNNs) and pretrained molecular representations under scaffold-split evaluation, which better reflects real-world generalization to novel chemical series.
-To address this, we introduce a reproducible benchmarking framework enforcing unified evaluation protocols across five model families, task-specific GNNs, pretrained transformers (ChemBERTa), contrastive GNN encoders (MolCLR), and fingerprint-based baselines, evaluated on six TDC ADMET benchmarks spanning four pharmacokinetic regression tasks and two toxicity classification tasks. We further provide a systematic comparison of seven hyperparameter optimization algorithms across over 2,100 training runs, enabling rigorous analysis of both model and optimizer rankings under scaffold-split conditions.
-Results reveal three levels of task learnability from molecular structure. On structure-driven endpoints, GNNs achieve strong and practically useful performance: hERG cardiotoxicity (AUC = 0.825) and Caco-2 permeability (R² = 0.48). On moderately structure-driven tasks such as Tox21 and microsomal clearance, performance is marginal and consistent across model families. On pharmacokinetic endpoints including hepatocyte clearance and half-life, all models fail regardless of complexity or pretraining, indicating that molecular structure alone does not encode sufficient biological information. Additionally, no hyperparameter optimization algorithm outperforms random search under scaffold-split conditions at a 50-trial budget, with bootstrap 95\% confidence intervals on paired improvements spanning or lying below zero for every metaheuristic. These findings support task-dependent model selection and show that additional model complexity does not consistently improve performance across ADMET tasks.
+It remains unclear for which ADMET endpoints molecular structure alone provides sufficient signal for reliable property prediction, and how model selection should be tailored to each endpoint. This study examines the task-dependent performance of graph neural networks (GNNs) and frozen pretrained molecular representations under scaffold-split evaluation, which better reflects generalization to novel chemical series.
+We use a single benchmarking pipeline with fixed splits, metrics, and validation across five model families: task-specific GNNs, a frozen pretrained transformer (ChemBERTa), a frozen contrastive GNN encoder (MolCLR), and Morgan and MolE-style fingerprint baselines, evaluated on six TDC ADMET benchmarks (four pharmacokinetic regression tasks and two toxicity classification tasks). We additionally compare seven hyperparameter optimization algorithms over more than 2{,}100 GNN training runs under scaffold-split conditions.
+Results reveal three levels of task learnability from molecular structure within this benchmark. On structure-driven endpoints, GNNs achieve strong and practically useful performance: hERG cardiotoxicity (AUC = 0.825) and Caco-2 permeability ($R^2 = 0.48$). On moderately structure-driven tasks such as Tox21 NR-AR and microsomal clearance, performance is modest and broadly consistent across model families. On pharmacokinetic endpoints including hepatocyte clearance and half-life, all evaluated models yield near-zero or negative $R^2$, suggesting that, for the evaluated structure-only representations and under scaffold-split evaluation, molecular structure alone provides limited predictive signal for these endpoints. In addition, no hyperparameter optimization algorithm shows a consistent improvement over Random Search at a 50-trial budget, with bootstrap 95\% confidence intervals on paired improvements spanning or lying below zero for every metaheuristic. Within the evaluated datasets and protocol, additional model complexity does not consistently improve performance, which supports endpoint-specific model selection. These findings are relevant for biomedical informatics pipelines that support early-stage drug discovery, where unreliable ADMET predictions can affect AI-supported compound prioritization and downstream safety-relevant decisions.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -68,7 +68,7 @@ graph neural networks, ADMET prediction, molecular property prediction, scaffold
 \section{Introduction}
 \label{sec:intro}
 
-\IEEEPARstart{P}{redicting} molecular ADMET (Absorption, Distribution, Metabolism, Excretion, and Toxicity) properties is a central task in computational drug discovery, enabling early identification of promising candidates and flagging safety liabilities before costly synthesis and \emph{in vivo} testing~\cite{zhang2025admet}. Graph Neural Networks (GNNs) have become prominent in this domain by treating molecules as graphs in which atoms serve as nodes and bonds as edges, enabling task-specific learning through message passing that encodes both local chemical motifs and global topological patterns inaccessible to fixed-length descriptors.~\cite{gilmer2017neural, yang2019analyzing, xiong2020pushing}.
+\IEEEPARstart{P}{redicting} molecular ADMET (Absorption, Distribution, Metabolism, Excretion, and Toxicity) properties is a central task in computational drug discovery, enabling early identification of promising candidates and flagging safety liabilities before costly synthesis and \emph{in vivo} testing~\cite{zhang2025admet}. Graph Neural Networks (GNNs) have become prominent in this domain by treating molecules as graphs in which atoms serve as nodes and bonds as edges, enabling task-specific learning through message passing that encodes both local chemical motifs and global topological patterns inaccessible to fixed-length descriptors~\cite{gilmer2017neural, yang2019dmpnn, attentiveFP}.
 
 \begin{table*}[!t]
 \centering
@@ -110,19 +110,18 @@ MiniMol & GNN+FM & Compact pretrained molecular model using MPNN++ & \cite{miniM
 \midrule
 ChemBERTa-2 & TF & RoBERTa pretrained on 77M SMILES (ZINC) & \cite{chemberta2} \\
 MolBERT & TF & BERT with SMILES and physicochemical objectives & \cite{molbert} \\
-MegaMolBART & TF & BART-based molecular generation and encoding & \cite{mmelon} \\
 
 \bottomrule
 \end{tabular}
 \end{table*}
 
-Beyond GNNs, a diverse range of AI and machine learning approaches has been applied to ADMET prediction. Pretrained molecular models such as ChemBERTa~\cite{chemberta2} and MolCLR~\cite{molclr} leverage self-supervised learning on large molecular corpora to produce general-purpose representations that can be transferred to downstream tasks. Classical fingerprint-based methods, including Morgan (ECFP) fingerprints~\cite{rogers2010ecfp} paired with traditional ML or MLP predictors, remain competitive baselines on many benchmarks~\cite{maplight, rdkit2d_mlp}. Although these approaches differ substantially in architecture and encoding strategy, all evaluated model families in this study rely exclusively on molecular structure as input, representing the same underlying 2D molecular graph or SMILES string\cite{weininger1988smiles} through different feature representations. GNNs operate directly on molecular graphs, fingerprint methods encode local substructures into fixed-length vectors, and transformer-based models learn contextual embeddings from SMILES sequences. Across these paradigms, strong predictive performance has been reported in the literature, often achieving state-of-the-art results on individual tasks~\cite{huang2021therapeuticsdatacommonsmachine}.
+Beyond GNNs, a diverse range of AI and machine learning approaches has been applied to ADMET prediction. Pretrained molecular models such as ChemBERTa~\cite{chemberta2} and MolCLR~\cite{molclr} leverage self-supervised learning on large molecular corpora to produce general-purpose representations that can be transferred to downstream tasks. Classical fingerprint-based methods, including Morgan (ECFP) fingerprints~\cite{rogers2010ecfp} paired with traditional ML or MLP predictors, remain competitive baselines on many benchmarks~\cite{maplight, rdkit2d_mlp}. Although these approaches differ substantially in architecture and encoding strategy, all evaluated model families in this study rely exclusively on molecular structure as input, representing the same underlying 2D molecular graph or SMILES string~\cite{weininger1988smiles} through different feature representations. GNNs operate directly on molecular graphs, fingerprint methods encode local substructures into fixed-length vectors, and transformer-based models learn contextual embeddings from SMILES sequences. Across these paradigms, strong predictive performance has been reported in the literature, often achieving state-of-the-art results on individual tasks~\cite{huang2021therapeuticsdatacommonsmachine}.
 
-Despite this progress, model selection in practice remains unclear. Different models perform inconsistently across tasks and molecular structures, and most published studies optimize performance for individual architectures or compare methods under different splits and experimental conditions, making direct comparison unreliable~\cite{wu2018moleculenet, yang2019analyzing}. Crucially, many works rely on random data splits, which allow structurally similar molecules to appear in both training and test sets. This leads to overly optimistic performance estimates that do not reflect the real-world scenario of predicting properties for new chemical scaffolds, where distribution shift is inevitable. As a result, practitioners still lack consistent guidance on model selection, endpoint-specific reliability, and the conditions under which molecular structure alone provides sufficient predictive information \cite{wu2018moleculenet, huang2021therapeuticsdatacommonsmachine}.
+Despite this progress, model selection in practice remains unclear. Different models perform inconsistently across tasks and molecular structures, and most published studies optimize performance for individual architectures or compare methods under different splits and experimental conditions, making direct comparison unreliable~\cite{wu2018moleculenet, yang2019dmpnn}. Crucially, many works rely on random data splits, which allow structurally similar molecules to appear in both training and test sets. This leads to overly optimistic performance estimates that do not reflect the real-world scenario of predicting properties for new chemical scaffolds, where distribution shift is inevitable. As a result, practitioners still lack consistent guidance on model selection, endpoint-specific reliability, and the conditions under which molecular structure alone provides sufficient predictive information \cite{wu2018moleculenet, huang2021therapeuticsdatacommonsmachine}.
 
 Evaluation protocols fundamentally influence conclusions about predictive performance in molecular machine learning, particularly in settings where generalization to unseen chemical scaffolds is required. However, the extent to which evaluation protocol alters both model and optimizer rankings remains insufficiently understood. Scaffold-based splitting~\cite{doi:10.1021/jm9602928}, which partitions compounds by core ring structures, serves as a realistic evaluation protocol that reflects prospective drug discovery campaigns where models must generalize to novel chemical series. In this work, we investigate how the predictive performance of molecular AI models depends on the underlying task and evaluation protocol, with a focus on identifying when molecular structure alone provides sufficient signal. These findings are directly relevant for AI-driven drug discovery pipelines, where inaccurate prediction of pharmacokinetic properties such as clearance and half-life can lead to costly late-stage failures and safety risks. In practical settings, model overconfidence on structurally plausible, but biologically inaccurate predictions may result in the prioritization of suboptimal compounds.
 
-Understanding the limits of structure-based prediction is therefore important for developing reliable molecular prediction pipelines in drug discovery. This motivates endpoint-specific model selection, where the modeling approach is chosen according to the biological and experimental characteristics of the endpoint. The main contributions of this study are as follows:
+Understanding the limits of structure-based prediction is therefore important for developing reliable molecular prediction pipelines in drug discovery. This motivates endpoint-specific model selection, where the modeling approach is chosen according to the biological and experimental characteristics of the endpoint. From a biomedical informatics perspective, ADMET predictors act as decision-support components in early-stage drug-discovery pipelines that inform AI-supported compound prioritization. If such models are evaluated under overly optimistic protocols, they may produce overconfident predictions for novel chemical scaffolds and misguide prioritization. Understanding endpoint-specific reliability under scaffold shift is therefore essential for trustworthy AI in translational drug-discovery workflows. The main contributions of this study are as follows:
 
 \begin{itemize}
     \item We present a systematic benchmark of graph-based, fingerprint-based, descriptor-based, and pretrained molecular representation models across six ADMET endpoints from the TDC benchmark.
@@ -151,8 +150,12 @@ Finally, Section~VI concludes the paper and outlines directions for future work.
 
 The TDC ADMET benchmark~\cite{huang2021therapeuticsdatacommonsmachine} has become the standard evaluation platform for molecular property prediction. Table~\ref{tab:related_work_summary} summarizes representative approaches from the TDC leaderboard and the broader literature.
 
-The TDC leaderboards\cite{tdc_admet_leaderboard} reveal that several top-performing approaches rely on comparatively simple architectures. MapLight~\cite{maplight} uses random forests and SVMs on node embeddings, while RDKit2D+MLP~\cite{rdkit2d_mlp} passes 200 physicochemical descriptors through a standard multi-layer perceptron. On certain datasets, even Random Forest or XGBoost achieves top results, motivating ensemble approaches such as FCA~\cite{cfa}, which combines multiple classifiers via weighted voting.
+The TDC leaderboards~\cite{tdc_admet_leaderboard} reveal that several top-performing approaches rely on comparatively simple architectures. MapLight~\cite{maplight} uses random forests and SVMs on node embeddings, while RDKit2D+MLP~\cite{rdkit2d_mlp} passes 200 physicochemical descriptors through a standard multi-layer perceptron. On certain datasets, even Random Forest or XGBoost achieves top results, motivating ensemble approaches such as FCA~\cite{cfa}, which combines multiple classifiers via weighted voting.
 
+% TODO (Fig. 1, Benchmark-Architecture-GNN.png): hand-drawn diagram with no generator script.
+%   Before final submission: (a) correct the in-figure label "ADME (4) + Tox (3)" to "Tox (2)"
+%   (the benchmark has two toxicity tasks); (b) provide a higher-resolution / simplified version,
+%   as some internal labels are small. Already typeset full-width (figure*) to aid readability.
 \begin{figure*}[!t]
     \centering
     \includegraphics[width=0.95\textwidth,height=0.68\textheight,keepaspectratio]{Benchmark-Architecture-GNN.png}
@@ -164,10 +167,10 @@ Among GNN-based methods, AttentiveFP~\cite{attentiveFP} employs GCN/GAT layers w
 
 Self-supervised pretraining has been adapted from NLP to molecular graphs via two main paradigms: attribute masking~\cite{attrMasking}, which reconstructs removed node or edge features, and contrastive learning~\cite{contrativeLearning}, which trains encoders to produce similar embeddings for augmented views of the same molecule. MolCLR~\cite{molclr} extends contrastive learning with three graph augmentation strategies (atom masking, bond deletion, subgraph removal), demonstrating improved downstream ADMET prediction compared to training from scratch.
 
-These techniques underpin most molecular pretrained molecular representation models, which follow a common paradigm: self-supervised pretraining on large unlabeled corpora, optional multi-task supervised training, and task-specific fine-tuning. Representative examples include DeepMol~\cite{deepMol}, MolE~\cite{molE}, and MegaMolBART~\cite{mmelon}. ChemBERTa~\cite{chemberta2} takes a distinct approach, applying a RoBERTa transformer to SMILES strings pretrained on 77M molecules from ZINC-15\cite{sterling2015zinc15}, while MolBERT~\cite{molbert} combines SMILES masked language modeling with auxiliary physicochemical objectives. A practical concern with pretrained molecular representation models is their large parameter count; MiniMol~\cite{miniMol} addresses this by using MPNN++ ($\sim$10M parameters) to achieve competitive TDC performance at substantially lower computational cost.
+These techniques underpin most molecular pretrained molecular representation models, which follow a common paradigm: self-supervised pretraining on large unlabeled corpora, optional multi-task supervised training, and task-specific fine-tuning. Representative examples include DeepMol~\cite{deepMol} and MolE~\cite{molE}. ChemBERTa~\cite{chemberta2} takes a distinct approach, applying a RoBERTa transformer to SMILES strings pretrained on 77M molecules from ZINC-15~\cite{sterling2015zinc15}, while MolBERT~\cite{molbert} combines SMILES masked language modeling with auxiliary physicochemical objectives. A practical concern with pretrained molecular representation models is their large parameter count; MiniMol~\cite{miniMol} addresses this by using MPNN++ ($\sim$10M parameters) to achieve competitive TDC performance at substantially lower computational cost.
 
 \paragraph{Scaffold Split Challenges}
-Transformer-based models frequently show severe generalization drops under scaffold splitting, with strong validation scores that collapse toward chance-level performance on held-out scaffolds~\cite{yang2019dmpnn,chemberta2}. Wu et al.~\cite{wu2018moleculenet} introduced MoleculeNet with scaffold-splitting to more faithfully reflect prospective drug discovery generalization. This observation is revisited in Section~\ref{sec:results}, where the experimental results show that on Tox21 NR-AR, ChemBERTa achieves validation AUC~=~0.896, but drops to 0.73 on the scaffold-split test set, while MolCLR degrades to 0.54 (near random).
+Transformer-based models frequently show severe generalization drops under scaffold splitting, with strong validation scores that collapse toward chance-level performance on held-out scaffolds~\cite{yang2019dmpnn,chemberta2}. Wu et al.~\cite{wu2018moleculenet} introduced MoleculeNet with scaffold-splitting to more faithfully reflect prospective drug discovery generalization. This observation is revisited in Section~\ref{sec:results}, where the experimental results show that on Tox21 NR-AR, ChemBERTa achieves validation AUC~=~0.896, but drops to 0.73 on the scaffold-split test set, while MolCLR falls below the random baseline on the test set (AUC~=~0.45).
 
 
 \subsection{Hyperparameter Optimization for Molecular ML}
@@ -178,7 +181,7 @@ Population-based metaheuristics, including PSO~\cite{kennedy1995pso}, GA~\cite{h
 
 
 \subsection{Challenges in Molecular ML: Distribution Shifts and Generalization}
-Beyond the scaffold-split sensitivity discussed above, molecular property prediction faces additional generalization challenges that compound evaluation difficulty. First, ADMET datasets are typically small (hundreds to low thousands of compounds), which amplifies variance across data splits and makes HPO-selected configurations sensitive to the specific training fold~\cite{wu2018moleculenet}. Second, the relationship between molecular structure and pharmacokinetic endpoints is often indirect: properties such as clearance and half-life depend on enzyme kinetics, transporter activity, and protein binding factors not explicitly encoded in molecular graphs or SMILES strings~\cite{obach1999prediction}. Third, class imbalance\cite{he2009imbalanced} in toxicity assays (e.g., 4.2\% positive rate in Tox21 NR-AR) biases standard loss functions toward the majority class, a problem that persists in our experiments where no explicit class reweighting is applied.
+Beyond the scaffold-split sensitivity discussed above, molecular property prediction faces additional generalization challenges that compound evaluation difficulty. First, ADMET datasets are typically small (hundreds to low thousands of compounds), which amplifies variance across data splits and makes HPO-selected configurations sensitive to the specific training fold~\cite{wu2018moleculenet}. Second, the relationship between molecular structure and pharmacokinetic endpoints is often indirect: properties such as clearance and half-life depend on enzyme kinetics, transporter activity, and protein binding factors not explicitly encoded in molecular graphs or SMILES strings~\cite{obach1999prediction}. Third, class imbalance~\cite{he2009imbalanced} in toxicity assays (e.g., 4.2\% positive rate in Tox21 NR-AR) biases standard loss functions toward the majority class, a problem that persists in our experiments where no explicit class reweighting is applied.
 
 These compounding factors mean that reported model rankings can shift substantially depending on dataset size, splitting protocol, and evaluation metric. Robust benchmarking therefore requires multi-seed validation, paired effect-size estimation, and confidence intervals, practices that remain inconsistent in molecular ML. Our framework enforces all three across every comparison.
 
@@ -197,15 +200,15 @@ These compounding factors mean that reported model rankings can shift substantia
 \subsection{Framework Overview}
 \label{sec:framework}
 
-The methodology is designed to enable a fair comparison of model families under realistic generalization conditions. We developed a modular benchmarking framework (Figure~\ref{fig:benchmark-framework}) that enforces consistent evaluation protocols for both GNN and pretrained model pipelines. The framework coordinates dataset loading, scaffold-split partitioning, model training, metric computation, and statistical analysis within a unified pipeline.
+To compare model families under realistic generalization conditions, we use a benchmarking framework (Fig.~\ref{fig:benchmark-framework}) that applies the same scaffold partitions, datasets, and metrics across the GNN and the frozen-pretrained/fingerprint pipelines. The framework coordinates dataset loading, scaffold-split partitioning, model training, metric computation, and statistical analysis.
 The statistical analysis includes repeated runs with different random seeds, aggregation of mean and standard deviation values, comparison of model families across endpoints, and confidence-interval-based comparison of hyperparameter optimization strategies against a Random Search baseline.
-This unified design reduces the ad-hoc methodological inconsistencies that can confound cross-study comparisons in molecular ML~\cite{wu2018moleculenet}. All models are evaluated on the same scaffold splits, with the same datasets, metrics, and validation procedures, ensuring that observed performance differences reflect model characteristics rather than experimental artifacts. The modular design separates experiment orchestration, model execution, and evaluation into independent components, enabling new algorithms, architectures, or datasets to be integrated without modifying core evaluation logic.
+Fixing the splits, datasets, and metrics across models removes split- and metric-related confounds that complicate cross-study comparison in molecular ML~\cite{wu2018moleculenet}, so that observed differences reflect model characteristics rather than experimental artifacts. The design separates experiment orchestration, model execution, and evaluation into independent components, so new algorithms, architectures, or datasets can be added without modifying the evaluation logic.
 
 
 \subsection{Datasets and Evaluation Protocol}
 \label{sec:datasets}
 
-We evaluate all models on six molecular property prediction tasks drawn from the Therapeutics Data Commons (TDC) ADMET benchmark~\cite{huang2021therapeuticsdatacommonsmachine}, covering four pharmacokinetic (ADME) regression tasks and two toxicity classification tasks. This evaluation protocol reflects practical drug discovery scenarios, where models are required to generalize to novel chemical series. Figure~\ref{fig:class-distribution} provides an overview of data provenance and class composition across all six datasets.
+We evaluate all models on six molecular property prediction tasks drawn from the Therapeutics Data Commons (TDC) ADMET benchmark~\cite{huang2021therapeuticsdatacommonsmachine}, covering four pharmacokinetic (ADME) regression tasks and two toxicity classification tasks. This evaluation protocol reflects practical drug discovery scenarios, where models are required to generalize to novel chemical series. Fig.~\ref{fig:class-distribution} provides an overview of data provenance and class composition across all six datasets.
 
 \subsubsection{ADME Regression Tasks}
 
@@ -216,7 +219,7 @@ The Caco-2 cell monolayer assay is the gold-standard \emph{in vitro} surrogate f
 Plasma half-life ($t_{1/2}$, hours) determines dosing frequency and is essential for designing drugs with adequate therapeutic windows. However, half-life is a composite pharmacokinetic parameter influenced not only by molecular structure, but also by volume of distribution, protein binding fraction, and individual patient variability~\cite{obach1999prediction}. The dataset is drawn from the Obach FDA-approved drug collection and contains \textbf{667 compounds} spanning a wide dynamic range (0.5-100$+$ hours). We apply a log transformation before standardization to reduce target skewness.
 
 \paragraph{Hepatocyte Clearance (Clearance\_Hepatocyte\_AZ)}
-Intrinsic clearance measured in freshly isolated human hepatocytes ($\mu$L/min/10$^6$ cells) captures both phase-I and phase-II metabolic routes and is the most physiologically relevant \emph{in vitro} metabolic stability assay~\cite{riley2001pharma}. The dataset was generated internally at AstraZeneca and is distributed through TDC~\cite{huang2021therapeuticsdatacommonsmachine}, comprising \textbf{1\,213 proprietary compounds}. This dataset yielded the weakest regression performance in our benchmark, with GNN models producing negative R$^2$ values, suggesting that molecular structure alone is insufficient to explain the observed variance in hepatic metabolism (see Section~\ref{sec:results}).
+Intrinsic clearance measured in freshly isolated human hepatocytes ($\mu$L/min/10$^6$ cells) captures both phase-I and phase-II metabolic routes and is the most physiologically relevant \emph{in vitro} metabolic stability assay~\cite{riley2001pharma}. The dataset was generated internally at AstraZeneca and is distributed through TDC~\cite{huang2021therapeuticsdatacommonsmachine}, comprising \textbf{1\,213 proprietary compounds}. This dataset yielded the weakest regression performance in our benchmark, with GNN models producing negative R$^2$ values, suggesting that, within this benchmark, molecular structure alone was insufficient to explain the observed variance in hepatic metabolism (see Section~\ref{sec:results}).
 
 \paragraph{Microsomal Clearance (Clearance\_Microsome\_AZ)}
 Human liver microsomal assays ($\mu$L/min/mg protein) measure primarily cytochrome P450-mediated (CYP) oxidative metabolism; they offer higher throughput than hepatocyte assays, but capture only phase-I reactions~\cite{obach2006trend}. The AstraZeneca dataset contains \textbf{1\,102 compounds}. Like hepatocyte clearance, microsomal clearance values are log-transformed and then standardized using train-set statistics.
@@ -224,19 +227,19 @@ Human liver microsomal assays ($\mu$L/min/mg protein) measure primarily cytochro
 \subsubsection{Toxicity Classification Tasks}
 
 \paragraph{Tox21 Nuclear Receptor: Androgen Receptor (Tox21 NR-AR)}
-The Tox21 initiative~\cite{tox21data} assembled a large multi-assay toxicology panel to enable high-throughput environmental hazard screening. We use the \textbf{NR-AR} assay (androgen receptor agonism), which identifies compounds that can disrupt androgen signaling. The TDC catalogue lists \textbf{7\,258 compounds} (6\,533 after graph conversion), of which only $\approx4.2\%$ are active (positive) samples (see Figure~\ref{fig:class-distribution}), making this the most class-imbalanced task in our benchmark.
+The Tox21 initiative~\cite{tox21data} assembled a large multi-assay toxicology panel to enable high-throughput environmental hazard screening. We use the \textbf{NR-AR} assay (androgen receptor agonism), which identifies compounds that can disrupt androgen signaling. The TDC catalogue lists \textbf{7\,258 compounds} (6\,533 after graph conversion), of which only $\approx4.2\%$ are active (positive) samples (see Fig.~\ref{fig:class-distribution}), making this the most class-imbalanced task in our benchmark.
 
 \paragraph{hERG Cardiotoxicity (hERG)}
 Blockade of the hERG potassium ion channel is the predominant mechanism of drug-induced QT interval prolongation and potentially fatal cardiac arrhythmias, and the hERG assay is a mandatory safety screen in preclinical drug development~\cite{sanguinetti2006herg}. The TDC hERG dataset contains \textbf{655 compounds} with binary blocker/non-blocker labels; approximately 69\% of compounds are blockers (a roughly 69/31 class split), making this a considerably more balanced classification task than Tox21 NR-AR.
 
 \paragraph{Splitting and evaluation protocol}
-We use the TDC scaffold-split function, which partitions compounds by Bemis-Murcko scaffolds~\cite{doi:10.1021/jm9602928} so that molecules with structurally distinct core rings appear in different folds. Scaffold-based splitting approximates prospective deployment conditions, where a model must generalize to structurally distinct compound families not seen during training. We further subdivide the train set 90/10 (train/validation) using a fixed random seed (42) to enable early stopping and model selection without touching the held-out test set. The final split proportions are approximately 80/10/10 (train/validation/test) across all datasets.
+We use the TDC scaffold-split function, which partitions compounds by Bemis-Murcko scaffolds~\cite{doi:10.1021/jm9602928} so that molecules with structurally distinct core rings appear in different folds. Scaffold-based splitting approximates prospective deployment conditions, where a model must generalize to structurally distinct compound families not seen during training. We further subdivide the train set 90/10 (train/validation) using a fixed random seed (42) to enable early stopping and model selection without touching the held-out test set. The final split proportions are approximately 70/8/22 (train/validation/test) across all datasets.
 Because scaffold splitting assigns entire scaffold groups to the same partition, the exact proportions may vary slightly across datasets.
 
 During hyperparameter optimization (HPO), the test split remains \emph{fully held out}; model selection is performed solely on the validation metric. Final performance is reported once on the test split after HPO is complete, preventing any implicit information leakage from repeated test-set evaluations.
 
 \paragraph{Target transformations}
-For the three skewed regression tasks (Half-Life, Hepatocyte and Microsomal Clearance) we apply $y' = \log(y + \epsilon)$, where $\epsilon = 10^{-3}$, followed by z-score normalization using training-set statistics. Caco-2 targets are already in log(cm/s) units, so only z-score normalization is applied. All normalization parameters are computed exclusively on the training fold and reused for validation and test sets to prevent data leakage. Classification targets are kept as binary integers (0/1) without transformation.
+For the three skewed regression tasks (Half-Life, Hepatocyte and Microsomal Clearance) we apply $y' = \log(\max(y, \epsilon))$, where $\epsilon = 10^{-3}$, followed by z-score normalization using training-set statistics. Caco-2 targets are already in log(cm/s) units, so only z-score normalization is applied. All normalization parameters are computed exclusively on the training fold and reused for validation and test sets to prevent data leakage. Classification targets are kept as binary integers (0/1) without transformation.
 
 \subsection{Model Families}
 \label{sec:model_families}
@@ -244,13 +247,13 @@ For the three skewed regression tasks (Half-Life, Hepatocyte and Microsomal Clea
 This comparison allows us to evaluate whether task-specific learning provides advantages over general-purpose molecular representations. We evaluate three distinct model paradigms under the same scaffold splits and evaluation metrics.
 
 \paragraph{GNN models}
-We employ graph neural networks trained end-to-end on each task. The GNN backbone is based on stacked Graph Convolutional Network (GCN) layers~\cite{kipf2017gcn} with batch normalization and ReLU activation, selected through a preliminary architecture comparison across eight GNN variants (Section~\ref{sec:arch_selection}). Each molecule is represented as a molecular graph constructed from SMILES using RDKit. Atom features include atomic number, degree, formal charge, hybridization, aromaticity, ring membership, hydrogen count, and atomic mass (8 features). The GNN encoder produces node embeddings aggregated into a graph-level representation using concatenated global mean and max pooling. The pooled representation is passed to an MLP prediction head with dropout and batch normalization. GNN models undergo full hyperparameter optimization (Section~\ref{sec:model_training}).
+We employ graph neural networks trained end-to-end on each task. The GNN backbone is based on stacked GraphConv layers~\cite{morris2019wlgnn} with batch normalization and ReLU activation, selected through a preliminary architecture comparison across eight GNN variants (Section~\ref{sec:arch_selection}). Each molecule is represented as a molecular graph constructed from SMILES using RDKit. Atom features include atomic number, degree, formal charge, hybridization, aromaticity, ring membership, hydrogen count, and atomic mass (8 features). The GNN encoder produces node embeddings aggregated into a graph-level representation using concatenated global mean and max pooling. The pooled representation is passed to an MLP prediction head with batch normalization and optional dropout. GNN models undergo full hyperparameter optimization (Section~\ref{sec:model_training}).
 
 \paragraph{Pretrained models}
 We evaluate two pretrained molecular encoders representing the two major pretrained molecular model paradigms shown in Table~\ref{tab:related_work_summary}: Several pretrained molecular representation models have been proposed, including SMILES-based transformer models such as ChemBERTa~\cite{chemberta2} and graph-based contrastive models such as MolCLR~\cite{molclr}. These models are used here as representative examples of sequence-based and graph-based pretrained approaches rather than an exhaustive list of all available pretrained molecular models. For pretrained encoders, we use a frozen encoder and trainable MLP head setting: embeddings are extracted once per molecule, and an MLP is trained on the train split with early stopping based on the validation split. This frozen-encoder protocol isolates the quality of pretrained representations from downstream optimization effects.
 
 \paragraph{Fingerprint baselines}
-We evaluate two fingerprint-based approaches: (i) Morgan fingerprints (ECFP)~\cite{rogers2010ecfp} with an MLP predictor, and (ii) MolE-style learned fingerprints (MolE-FP)~\cite{molE} with an MLP predictor. These fixed molecular descriptors serve as baselines representing the classical cheminformatics approach to molecular property prediction. All baselines use the same dataset splits and evaluation metrics as the GNN experiments.
+We evaluate two fingerprint-based approaches: (i) Morgan fingerprints (ECFP)~\cite{rogers2010ecfp} with an MLP predictor, and (ii) MolE-style learned fingerprints (MolE-FP) with an MLP predictor. The MolE-FP baseline is implemented as Morgan fingerprints followed by a learned projection inspired by the MolE approach~\cite{molE}, rather than the original pretrained MolE encoder. These fixed molecular descriptors serve as baselines representing the classical cheminformatics approach to molecular property prediction. All baselines use the same dataset splits and evaluation metrics as the GNN experiments.
 
 \begin{figure}[!t]
     \centering
@@ -288,11 +291,11 @@ MLP Head Layer 3 & \{32, 48, 64, 96, 128\} (sorted desc.) \\
 \end{table}
 
 \paragraph{Optimization algorithms.}
-We evaluate seven HPO strategies: Random Search~\cite{bergstra2012random}, Particle Swarm Optimization (PSO)~\cite{kennedy1995pso}, Artificial Bee Colony (ABC)~\cite{karaboga2005abc}, Genetic Algorithm (GA)~\cite{holland1975ga}, Simulated Annealing (SA)~\cite{saopt}, Hill Climbing (HC)~\cite{hcopt}, and Tree-structured Parzen Estimator (TPE)~\cite{akiba2019optuna}. For population-based methods (PSO, GA, ABC), a population size of 16 is used. SA is initialized with temperature $T_0 = 1.0$ and exponential cooling ($\alpha = 0.99$). TPE uses Optuna's default of 10 startup trials with median pruning. All NiaPy-based~\cite{niapy} methods operate over the 7-dimensional search space in Table~\ref{tab:search_space}; TPE additionally optimizes dropout rate $\in [0.0, 0.5]$. Each algorithm is allocated 50 trials per dataset.
+We evaluate seven HPO strategies: Random Search~\cite{bergstra2012random}, Particle Swarm Optimization (PSO)~\cite{kennedy1995pso}, Artificial Bee Colony (ABC)~\cite{karaboga2005abc}, Genetic Algorithm (GA)~\cite{holland1975ga}, Simulated Annealing (SA)~\cite{saopt}, Hill Climbing (HC)~\cite{hcopt}, and Tree-structured Parzen Estimator (TPE)~\cite{akiba2019optuna}. For population-based methods (PSO, GA, ABC), a population size of 16 is used. SA is initialized with temperature $T_0 = 1.0$ and exponential cooling ($\alpha = 0.99$). TPE uses Optuna's default of 10 startup trials with median pruning. All NiaPy-based~\cite{niapy} methods operate over the 7-dimensional search space in Table~\ref{tab:search_space}. TPE (Optuna) searches a separate space over hidden dimension, number of layers, learning rate, weight decay, and dropout rate $\in [0.0, 0.5]$. Each algorithm is allocated 50 trials per dataset, giving 2{,}100 GNN training runs from the optimizer comparison alone (seven optimizers $\times$ six datasets $\times$ 50 trials); together with the preliminary architecture-selection sweep and the multi-seed validation, the study comprises more than 2{,}100 training runs in total.
 
 \begin{table}[!t]
 \centering
-\caption{Dataset statistics and evaluation metrics (TDC ADMET). ``TDC'' shows compounds catalogued; ``Used'' shows those retained after filtering.}
+\caption{Dataset statistics and evaluation metrics (TDC ADMET). ``TDC'' shows compounds catalogued; ``Used'' shows those retained after filtering. RMSE is the primary per-dataset regression metric; the scale-invariant R$^2$ is additionally used for cross-model comparison in Table~\ref{tab:model_comparison}.}
 \label{tab:dataset_stats}
 \small
 \begin{tabular}{lccccc}
@@ -316,13 +319,13 @@ hERG & Class. & 655 & 590 & Scaffold & AUC \\
 Table~\ref{tab:dataset_stats} summarizes the dataset characteristics across all six tasks.
 
 \paragraph{Evaluation metrics}
-Model performance is assessed using prediction quality metrics: RMSE, R$^2$, and MAE for ADME regression tasks; AUC-ROC and F1-score for toxicity classification tasks.
+Model performance is assessed using RMSE, R$^2$, and MAE for ADME regression tasks, and AUC-ROC and F1-score for toxicity classification tasks. AUC-ROC is the primary ranking metric for classification; F1 is reported in addition because it is more sensitive to the minority class under strong class imbalance, and it is the classification metric used in the paired optimizer comparison (Table~\ref{tab:ci_comparison}).
 
 \paragraph{Multi-seed validation}
 To quantify robustness, we retrain the best HPO-selected configuration per dataset across five seeds $[42, 123, 456, 789, 1011]$. We report the mean, standard deviation, and 95\% confidence interval across seeds.
 
 \paragraph{HPO algorithm comparison}
-We compare each optimizer against the Random Search baseline using paired performance differences across the six datasets rather than null-hypothesis significance tests. For every dataset we compute the improvement with a normalized direction so that positive values favor the optimizer (for RMSE, $\text{Random}-\text{Algo}$; for F1, $\text{Algo}-\text{Random}$). Because the datasets differ by orders of magnitude in scale, we express each difference as a percentage of the Random-Search baseline before aggregating. For each optimizer we report the win/tie/loss count, the mean relative improvement, a 95\% confidence interval obtained from 10{,}000 percentile bootstrap resamples of the six paired differences, and the paired effect size $d_z$ (mean divided by the standard deviation of the differences).
+We compare each optimizer against the Random Search baseline using paired performance differences across the six datasets rather than null-hypothesis significance tests. For every dataset we compute the improvement with a normalized direction so that positive values favor the optimizer (for RMSE, $\text{Random}-\text{Algo}$; for F1, $\text{Algo}-\text{Random}$). Because the datasets differ by orders of magnitude in scale, we express each difference as a percentage of the Random-Search baseline before aggregating. For each optimizer we report the win/tie/loss count, the mean relative improvement, a 95\% confidence interval obtained from 10{,}000 percentile bootstrap resamples of the six paired differences, and the paired effect size $d_z$ (mean divided by the standard deviation of the differences). The paired unit is the dataset ($n=6$), and all comparisons use final held-out test performance obtained after HPO model selection on the validation split. With only six paired observations, null-hypothesis significance tests are underpowered; we therefore rely on bootstrap confidence intervals and the paired effect size, which together summarize both the magnitude and the consistency of any improvement over Random Search.
 
 \paragraph{Implementation}
 The implementation was carried out in Python~$\geq$~3.8 using PyTorch~$\geq$~2.0, PyTorch Geometric~$\geq$~2.3, RDKit~$\geq$~2022.9, PyTDC~$\geq$~0.4, NiaPy~$\geq$~2.0~\cite{niapy}, Optuna~$\geq$~3.0, and Transformers~$\geq$~4.30.
@@ -337,7 +340,7 @@ The total runtime required to complete all experimental runs was approximately 4
 \subsection{Task-Level Performance on ADMET Endpoints}
 \label{sec:task_level}
 
-Table~\ref{tab:model_comparison} presents the performance of all model families across the six ADMET tasks. Figure~\ref{fig:foundation_ranking} provides a visual summary of relative model rankings.
+Table~\ref{tab:model_comparison} presents the performance of all model families across the six ADMET tasks. Fig.~\ref{fig:foundation_ranking} provides a visual summary of relative model rankings.
 
 \begin{table*}[!t]
 \centering
@@ -350,18 +353,18 @@ Table~\ref{tab:model_comparison} presents the performance of all model families 
 \midrule
 \multicolumn{7}{l}{\emph{Group 1: Structure-driven tasks}} \\
 \midrule
-hERG & AUC $\uparrow$ & \textbf{0.825} & 0.770 & 0.611 & 0.672 & 0.504 \\
-Caco-2 & R$^2$ $\uparrow$ & \textbf{0.481} & 0.478 & 0.200 & 0.047 & $-$0.079 \\
+hERG & AUC $\uparrow$ & \textbf{0.825} & 0.770 & 0.611 & 0.672 & 0.401 \\
+Caco-2 & R$^2$ $\uparrow$ & \textbf{0.481} & 0.478 & 0.200 & 0.047 & $-$0.189 \\
 \midrule
 \multicolumn{7}{l}{\emph{Group 2: Partially structure-driven tasks}} \\
 \midrule
-Tox21 (NR-AR) & AUC $\uparrow$ & \textbf{0.742} & 0.728 & 0.722 & 0.675 & 0.538 \\
-Clearance Mic. & R$^2$ $\uparrow$ & \textbf{0.191} & 0.024 & 0.122 & 0.059 & $-$0.012 \\
+Tox21 (NR-AR) & AUC $\uparrow$ & \textbf{0.742} & 0.728 & 0.722 & 0.675 & 0.452 \\
+Clearance Mic. & R$^2$ $\uparrow$ & \textbf{0.191} & 0.024 & 0.122 & 0.059 & 0.041 \\
 \midrule
-\multicolumn{7}{l}{\emph{Group 3: Tasks not learnable from structure alone}} \\
+\multicolumn{7}{l}{\emph{Group 3: Tasks weakly learnable from structure alone}} \\
 \midrule
-Half-Life & R$^2$ $\uparrow$ & \textbf{0.004} & $-$0.594 & $-$0.039 & $-$0.329 & $-$0.025 \\
-Clearance Hep. & R$^2$ $\uparrow$ & $-$1.019 & 0.029 & $-$0.015 & \textbf{0.032} & $-$0.030 \\
+Half-Life & R$^2$ $\uparrow$ & \textbf{0.004} & $-$0.594 & $-$0.039 & $-$0.329 & $-$0.001 \\
+Clearance Hep. & R$^2$ $\uparrow$ & $-$1.019 & 0.029 & $-$0.015 & \textbf{0.032} & $-$0.039 \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -375,16 +378,16 @@ On hERG cardiotoxicity and Caco-2 permeability, the GNN achieves the strongest p
 \paragraph{Group 2: Moderately structure-driven tasks.}
 On Tox21 NR-AR and Microsomal clearance, the GNN achieves the best performance (AUC = 0.742 and R$^2$ = 0.191), but the margin over other model families narrows. On Tox21, all models except MolCLR achieve AUC $>$ 0.67, indicating that multiple representation strategies capture relevant structural signals to a similar degree. On Microsomal clearance, predictive power is marginal across all models, with GNN R$^2$ = 0.191 and the next-best Morgan-FP reaching R$^2$ = 0.122. Structure alone is partially informative for these endpoints, but additional features or data may be needed for stronger predictions.
 
-\paragraph{Group 3: Tasks not learnable from structure alone.}
-On Half-Life and Hepatocyte clearance, all evaluated models produced weak predictive performance, with near-zero or negative R$^2$ values. The best Half-Life R$^2$ is 0.004 (GNN), effectively zero, while all other models produce negative R$^2$ values. On Hepatocyte clearance, the GNN yields R$^2$ = $-$1.019 (worse than a mean predictor), and even the best model (MolE-FP, R$^2$ = 0.032) explains essentially no variance. These results indicate that molecular structure alone does not provide sufficient information for these pharmacokinetic endpoints, which depend on enzyme kinetics, transporter activity, protein binding, and individual patient variability~\cite{obach1999prediction}.
+\paragraph{Group 3: Tasks weakly learnable from structure alone.}
+On Half-Life and Hepatocyte clearance, all evaluated models produced weak predictive performance, with near-zero or negative R$^2$ values. The best Half-Life R$^2$ is 0.004 (GNN), effectively zero, while all other models produce negative R$^2$ values. On Hepatocyte clearance, the GNN yields R$^2$ = $-$1.019 (worse than a mean predictor), and even the best model (MolE-FP, R$^2$ = 0.032) explains essentially no variance. These results suggest that, for the evaluated structure-only representations under scaffold-split evaluation, molecular structure alone provided limited predictive signal for these pharmacokinetic endpoints, which depend on enzyme kinetics, transporter activity, protein binding, and individual patient variability~\cite{obach1999prediction}.
 
-These results suggest that molecular structure alone may be insufficient for endpoints that depend strongly on biological and experimental context. Both simple and complex models fail on the same endpoints, suggesting that the bottleneck is the information content of the molecular graph representation rather than the learning algorithm.
+These results suggest that molecular structure alone may be insufficient for endpoints that depend strongly on biological and experimental context. Both simple and more complex models showed similarly weak performance on the same endpoints, which is more consistent with a limitation in the information content of the structure-only representation than with the choice of learning algorithm.
 
 
 \subsection{Model Performance Across Tasks}
 \label{sec:model_performance}
 
-We examine performance differences between model families in greater detail using Figure~\ref{fig:foundation_comparison}, which compares GNN, pretrained, and fingerprint models across all tasks.
+We examine performance differences between model families in greater detail using Fig.~\ref{fig:foundation_comparison}, which compares GNN, pretrained, and fingerprint models across all tasks.
 
 \begin{figure*}[!t]
     \centering
@@ -394,13 +397,13 @@ We examine performance differences between model families in greater detail usin
 \end{figure*}
 
 \paragraph{GNN advantage on toxicity tasks.}
-The GNN outperforms all frozen pretrained baselines on both toxicity classification tasks. On hERG, the GNN achieves AUC = 0.825 compared to ChemBERTa's 0.770 and Morgan-FP's 0.611. On Tox21, the GNN (AUC = 0.742) matches ChemBERTa (0.728) and substantially exceeds MolCLR (0.538). Task-specific graph convolution patterns are particularly valuable for toxicity endpoints, where specific substructural motifs are strong predictors.
+The GNN outperforms all frozen pretrained baselines on both toxicity classification tasks. On hERG, the GNN achieves AUC = 0.825 compared to ChemBERTa's 0.770 and Morgan-FP's 0.611. On Tox21, the GNN (AUC = 0.742) matches ChemBERTa (0.728) and substantially exceeds MolCLR (0.452). Task-specific graph convolution patterns are particularly valuable for toxicity endpoints, where specific substructural motifs are strong predictors.
 
 \paragraph{Comparable performance on permeability.}
 On Caco-2, the optimized GNN achieves R$^2$ = 0.48, comparable to ChemBERTa's R$^2$ = 0.48. Both graph-based and SMILES-based representations capture a similar degree of the underlying structure-activity relationship for permeability prediction.
 
-\paragraph{All models fail on clearance and half-life.}
-On Hepatocyte clearance, no model achieves meaningful predictive power (all R$^2 \approx 0$). The pretrained representations provide more stable (though still poor) predictions than end-to-end GNN training: ChemBERTa achieves R$^2$ = 0.03 versus GNN R$^2$ = $-$1.02. Frozen pretrained encoders produce fixed representations that act as implicit regularizers~\cite{chemberta2}; because their features are not adapted to the training noise of any particular task, they provide a more stable baseline on tasks where overfitting risk is highest. On Half-Life and Microsomal clearance, the same pattern of weak or absent predictive signal persists across all model families.
+\paragraph{Limited performance on clearance and half-life.}
+On Hepatocyte clearance, no evaluated model achieves meaningful predictive power (all R$^2 \approx 0$). The pretrained representations provide more stable (though still poor) predictions than end-to-end GNN training: ChemBERTa achieves R$^2$ = 0.03 versus GNN R$^2$ = $-$1.02. Frozen pretrained encoders produce fixed representations that act as implicit regularizers~\cite{chemberta2}; because their features are not adapted to the training noise of any particular task, they provide a more stable baseline on tasks where overfitting risk is highest. On Half-Life and Microsomal clearance, the same pattern of weak or absent predictive signal persists across all model families.
 
 For practitioners, these results indicate a diagnostic approach: if a task-specific GNN achieves negative R$^2$ or near-random AUC on a scaffold-split test set, the endpoint may not be predictable from molecular structure alone, and pretrained encoders should be considered as regularized baselines.
 
@@ -409,7 +412,8 @@ For practitioners, these results indicate a diagnostic approach: if a task-speci
 \label{sec:arch_selection}
 
 Before conducting the main benchmarking experiments, we performed a preliminary architecture selection phase to identify the most suitable GNN backbone. Eight architectures were evaluated: GCN~\cite{kipf2017gcn}, GAT~\cite{velickovic2018gat}, GraphSAGE~\cite{hamilton2017graphsage}, GIN~\cite{xu2019gin}, TAG~\cite{du2018tagcn}, SGC~\cite{wu2019sgc}, TransformerConv~\cite{shi2021unimp}, and GraphConv~\cite{morris2019wlgnn}.
-Tables~\ref{tab:arch_regression} and~\ref{tab:arch_classification} summarize the results.
+Tables~\ref{tab:arch_regression} and~\ref{tab:arch_classification} summarize the results. Because this preliminary screen used an earlier experimental configuration, its absolute R$^2$ values are not directly comparable to the final scaffold-split benchmark (Table~\ref{tab:model_comparison}); for example, the architecture-sweep Half\_Life R$^2$ values ($0.33$--$0.47$) far exceed the final benchmark Half\_Life R$^2$ ($0.004$). These sweep values are therefore used only to rank architectures relative to one another, not as absolute performance estimates.
+% TODO: per-run logs for the preliminary architecture sweep were not retained; the absolute values in Tables~V--VI cannot be regenerated from the final pipeline and are reported only as a relative ranking.
 
 \begin{table*}[!t]
 \centering
@@ -444,7 +448,7 @@ Tables~\ref{tab:arch_regression} and~\ref{tab:arch_classification} summarize the
  & GIN & 8 & 32.35 & 1.075 & 0.243 \\
  & SGC & 12 & 33.99 & 1.235 & 0.259 \\
  & Transformer & 4 & 20.93 & 1.150 & 0.149 \\
- & GAT & 7 & 43.33 & 39.79 & 0.147 \\
+ & GAT & 7 & 43.33 & 39.78 & 0.147 \\
  & SAGE & 19 & 44.20 & 37.43 & 0.245 \\
 \bottomrule
 \end{tabular}
@@ -472,25 +476,25 @@ Tables~\ref{tab:arch_regression} and~\ref{tab:arch_classification} summarize the
 \end{tabular}
 \end{table}
 
-GraphConv and GCN consistently ranked among the top architectures across tasks (Table~\ref{tab:arch_ranking}), while GAT and SAGE exhibited severe training instability with frequent divergence (mean RMSE exceeding $100\times$ the best value on some datasets). We selected GCN as the backbone for all subsequent experiments based on: (i) the highest R$^2$ on Half\_Life (0.468) and consistent top-3 ranking; (ii) high training stability with no divergent runs; (iii) fast training speed enabling efficient HPO; and (iv) widespread use as a baseline in molecular benchmarks~\cite{wu2018moleculenet, kipf2017gcn}. Figure~\ref{fig:arch_comparison} shows the complete comparison across datasets.
+GraphConv and GCN were the two strongest architectures, with nearly identical average ranks (Table~\ref{tab:arch_ranking}), while GAT and SAGE exhibited severe training instability with frequent divergence (mean RMSE exceeding $100\times$ the best value on some datasets). We selected GraphConv as the backbone for all subsequent experiments based on: (i) the best test R$^2$ on two of the three regression architecture sweeps (Clearance Hepatocyte and Clearance Microsome); (ii) high training stability with no divergent runs; and (iii) fast training speed enabling efficient HPO. GraphConv matched GCN in training stability and speed; although GCN attained a marginally better average rank (Table~\ref{tab:arch_ranking}), the two are statistically close and either would be an equally reasonable backbone. We do not claim GraphConv is uniformly superior to GCN. Fig.~\ref{fig:arch_comparison} shows the complete comparison across datasets.
 
 \begin{table}[!t]
 \centering
-\caption{Architecture selection summary. Average rank across regression datasets (lower is better) and qualitative stability assessment.}
+\caption{Architecture selection summary. Average rank is computed from the best test R$^2$ per regression dataset (Table~\ref{tab:arch_regression}); lower is better. Stability and speed are qualitative assessments. GraphConv (the selected backbone) and GCN are the two top-ranked architectures.}
 \label{tab:arch_ranking}
 \small
 \begin{tabular}{lccc}
 \toprule
 \textbf{Architecture} & \textbf{Avg.\ Rank} & \textbf{Stability} & \textbf{Speed} \\
 \midrule
-GraphConv & 1.0 & High & Fast \\
-GCN & 2.7 & High & Fast \\
-TAG & 2.7 & Medium & Medium \\
-GIN & 4.0 & Medium & Slow \\
-Transformer & 4.0 & Medium & Slow \\
-SGC & 5.3 & High & Fast \\
+GCN & 2.0 & High & Fast \\
+GraphConv & 2.3 & High & Fast \\
+TAG & 2.3 & Medium & Medium \\
+SGC & 3.7 & High & Fast \\
+GIN & 6.0 & Medium & Slow \\
+SAGE & 6.0 & Low & Medium \\
+Transformer & 6.7 & Medium & Slow \\
 GAT & 7.0 & Low & Slow \\
-SAGE & 7.3 & Low & Medium \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -505,7 +509,7 @@ SAGE & 7.3 & Low & Medium \\
 \begin{figure}[!t]
     \centering
     \includegraphics[width=\columnwidth,height=0.42\textheight,keepaspectratio]{gnn_architecture_selection_summary.png}
-    \caption{Architecture selection summary showing average rank across datasets (lower is better) colored by training stability. GCN (highlighted) was selected based on its combination of strong performance, high stability, and fast training.}
+    \caption{Architecture selection summary showing average rank across datasets (lower is better) colored by training stability. GraphConv (highlighted) was selected based on its combination of strong performance, high stability, and fast training.}
     \label{fig:arch_selection_summary}
 \end{figure}
 
@@ -541,7 +545,7 @@ hERG & 0.747 & \textbf{0.825} & 0.747 & 0.802 & 0.821 & 0.747 & 0.756 \\
 
 \begin{table}[!t]
 \centering
-\caption{Best test set performance per dataset among NiaPy-based HPO algorithms. Metrics from single best trial.}
+\caption{Best test set performance per dataset among NiaPy-based HPO algorithms (single best trial). For the regression rows the metric columns report RMSE and R$^2$; for the classification rows they report F1 and AUC-ROC.}
 \label{tab:best_results}
 \small
 \setlength{\tabcolsep}{4pt}
@@ -549,7 +553,7 @@ hERG & 0.747 & \textbf{0.825} & 0.747 & 0.802 & 0.821 & 0.747 & 0.756 \\
 \toprule
 \textbf{Dataset} & \textbf{Best Algo} & \textbf{RMSE/F1} & \textbf{R$^2$/AUC} & \textbf{Time (s)} \\
 \midrule
-Caco2\_Wang & Random & 0.0027 & 0.482 & 15.7 \\
+Caco2\_Wang & Random & 0.0027 & 0.481 & 15.7 \\
 Half\_Life & PSO & 21.66 & 0.004 & 19.7 \\
 Clear.\_Hep. & Random & 68.22 & $-$1.019 & 5.3 \\
 Clear.\_Mic. & Random & 38.75 & 0.191 & 52.3 \\
@@ -580,16 +584,16 @@ HC  & 0/0/6 & $-6.96$ & $[-9.38,\ -4.09]$ & $-1.89$ \\
 \end{tabular}
 \end{table}
 
-Optimization trajectories (Figure~\ref{fig:convergence}) show that PSO and ABC converge rapidly within 10-15 trials, while SA converges gradually across all 50 trials. The competitiveness of Random Search on regression tasks is consistent with the ``effective dimensionality'' phenomenon~\cite{bergstra2012random}: when only a subset of hyperparameters (e.g., learning rate, hidden dimension) dominates performance, the probability of Random Search sampling a near-optimal configuration by chance increases.
+The training-convergence visualization (Fig.~\ref{fig:convergence}) illustrates the qualitative per-epoch convergence of the best configuration selected by each algorithm: PSO and ABC reach strong validation values early, while SA improves more gradually during training. The competitiveness of Random Search on regression tasks is consistent with the ``effective dimensionality'' phenomenon~\cite{bergstra2012random}: when only a subset of hyperparameters (e.g., learning rate, hidden dimension) dominates performance, the probability of Random Search sampling a near-optimal configuration by chance increases.
 
 \begin{figure}[!t]
     \centering
     \includegraphics[width=\columnwidth,height=0.42\textheight,keepaspectratio]{hpo_convergence_curves.png}
-    \caption{Convergence trajectories for HPO algorithms on Half\_Life\_Obach and Tox21, showing trial-by-trial validation performance.}
+    \caption{Convergence trajectories for HPO algorithms across all six benchmark datasets (four ADME regression and two toxicity classification tasks), showing the best-so-far validation metric per training epoch for the best configuration selected by each algorithm. The curves illustrate qualitative optimization behavior recorded during the HPO analysis.}
     \label{fig:convergence}
 \end{figure}
 
-Figure~\ref{fig:algorithm_performance} provides a comprehensive view of all algorithms across datasets, including training time trade-offs.
+Fig.~\ref{fig:algorithm_performance} compares all algorithms across datasets on test RMSE, R$^2$, and training time; the performance--time panel shows that Random Search and PSO reach competitive accuracy at low computational cost.
 
 \begin{figure*}[!t]
     \centering
@@ -599,21 +603,14 @@ Figure~\ref{fig:algorithm_performance} provides a comprehensive view of all algo
 \end{figure*}
 
 \paragraph{Classification detail.}
-All HPO algorithms achieve AUC-ROC $>$ 0.65 on both classification tasks (Figure~\ref{fig:confusion_matrices}). On hERG, the best model (ABC) achieves F1 = 0.809 with balanced performance across both classes. On Tox21, the best model (SA) achieves F1 = 0.455 despite 96.2\% accuracy, reflecting the severe class imbalance (4.2\% positive rate).
-
-\begin{figure*}[!t]
-    \centering
-    \includegraphics[width=0.95\textwidth,height=0.68\textheight,keepaspectratio]{confusion_matrices.png}
-    \caption{Confusion matrices for best-performing models on toxicity tasks. (A) hERG shows balanced performance (ABC, F1 = 0.809). (B) Tox21 shows majority-class bias due to extreme imbalance (SA, F1 = 0.455).}
-    \label{fig:confusion_matrices}
-\end{figure*}
+All HPO algorithms achieve AUC-ROC $>$ 0.65 on both classification tasks. On hERG, the best model (ABC) achieves F1 = 0.809 with balanced performance across both classes. On Tox21, the best model (SA) achieves F1 = 0.455 despite 96.2\% accuracy, reflecting the severe class imbalance (4.2\% positive rate). Per-class confusion matrices for both best models are provided in the supplementary material (Supplementary Fig.~\ref{fig:confusion_matrices}).
 
 
 \subsection{Effect of Evaluation Protocol}
 \label{sec:eval_protocol}
 
 \paragraph{Scaffold split compresses performance differences.}
-Table~\ref{tab:multiseed} presents multi-seed validation results for the best HPO-selected configurations. The low standard deviations confirm robustness, but the modest absolute performance on pharmacokinetic tasks reinforces that scaffold-split evaluation produces a more challenging and realistic assessment than random splits.
+Table~\ref{tab:multiseed} presents multi-seed validation results for the best HPO-selected configurations. The low standard deviations confirm robustness, but the modest absolute performance on pharmacokinetic tasks reinforces that scaffold-split evaluation produces a more challenging and realistic assessment than random splits. A visual summary across seeds is provided in the supplementary material (Supplementary Fig.~\ref{fig:multiseed_validation}).
 
 \begin{table}[!t]
 \centering
@@ -625,39 +622,26 @@ Table~\ref{tab:multiseed} presents multi-seed validation results for the best HP
 \toprule
 \textbf{Dataset} & \textbf{Task} & \textbf{Metric} & \textbf{Mean $\pm$ Std (95\% CI)} \\
 \midrule
-Caco2 & Regr. & RMSE & 0.0033 $\pm$ 0.0005 (0.0027-0.0039) \\
-Half\_Life & Regr. & RMSE & 20.05 $\pm$ 1.17 (18.61-21.50) \\
-Clear.\_Hep. & Regr. & RMSE & 52.37 $\pm$ 2.87 (48.81-55.93) \\
-Clear.\_Mic. & Regr. & RMSE & 53.46 $\pm$ 13.56 (36.63-70.30) \\
-Tox21 & Class. & AUC & 0.711 $\pm$ 0.012 (0.696-0.727) \\
-hERG & Class. & AUC & 0.805 $\pm$ 0.022 (0.778-0.832) \\
+Caco2 & Regr. & RMSE & 0.0026 $\pm$ 0.0001 (0.0026-0.0027) \\
+Half\_Life & Regr. & RMSE & 20.72 $\pm$ 1.42 (19.48-21.96) \\
+Clear.\_Hep. & Regr. & RMSE & 49.87 $\pm$ 1.15 (48.86-50.88) \\
+Clear.\_Mic. & Regr. & RMSE & 42.02 $\pm$ 3.36 (39.08-44.97) \\
+Tox21 & Class. & AUC & 0.716 $\pm$ 0.012 (0.706-0.727) \\
+hERG & Class. & AUC & 0.804 $\pm$ 0.018 (0.789-0.819) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{figure}[!t]
-    \centering
-    \includegraphics[width=\columnwidth,height=0.42\textheight,keepaspectratio]{multi_seed_validation.png}
-    \caption{Multi-seed validation: mean test metric with 95\% confidence interval across five random seeds for each dataset (values from Table~\ref{tab:multiseed}). Each panel is colored by dataset and uses its own vertical scale.}
-    \label{fig:multiseed_validation}
-\end{figure}
-
 \paragraph{Evaluation protocol influences model rankings.}
-Scaffold-based splitting creates a structural covariate shift where the model must generalize not merely to unseen molecules, but to unseen chemical families. Under such conditions, validation performance becomes a noisier proxy for true generalization, because a configuration that happens to fit the specific scaffolds in the validation set may not transfer to the test scaffolds. This has important consequences for model selection: on Tox21, ChemBERTa achieves validation AUC = 0.896, but drops to 0.73 on the scaffold-split test set, while MolCLR degrades from validation to 0.54 (near random). Such validation-test gaps demonstrate that evaluation protocol substantially influences model rankings and perceived performance.
+Scaffold-based splitting creates a structural covariate shift where the model must generalize not merely to unseen molecules, but to unseen chemical families. Under such conditions, validation performance becomes a noisier proxy for true generalization, because a configuration that happens to fit the specific scaffolds in the validation set may not transfer to the test scaffolds. This has important consequences for model selection: on Tox21, ChemBERTa achieves validation AUC = 0.896, but drops to 0.73 on the scaffold-split test set, while MolCLR falls below the random baseline on the test set with AUC = 0.45. These results demonstrate that evaluation protocol substantially influences model rankings and perceived performance.
 
 The noise introduced by scaffold splitting also explains why no HPO algorithm improves on Random Search on average (Table~\ref{tab:ci_comparison}), with paired confidence intervals that span or fall below zero. Adaptive methods use validation performance to guide search decisions; when that signal is noisy, they risk optimizing for the specific validation fold rather than discovering genuinely superior hyperparameters. Random Search, by contrast, does not condition on previous evaluations, making it less susceptible to sequential overfitting of a noisy validation surface.
-
-% NOTE: The following figures need to be generated and added:
-% - PCA scatter plots of GNN embeddings, pretrained model embeddings, and fingerprints
-%   colored by train/test/val scaffold splits (one column per model type)
-% - Same PCA scatter plots colored by R2/AUC per task
-% - Combined figure: columns per model embedding type, rows for splits and per-task performance
 
 \FloatBarrier
 \section{Discussion}
 \label{sec:discussion}
 
-The results show that ADMET prediction performance is strongly endpoint-dependent.
+Predictive performance varied widely across the six endpoints, from R$^2$ = 0.48 on Caco-2 permeability to R$^2$ = $-$1.02 on hepatocyte clearance, confirming that ADMET prediction is strongly endpoint-dependent.
 Across the evaluated datasets, model rankings were not consistent: architectures that performed well on permeability or toxicity did not necessarily transfer to clearance or half-life prediction.
 This indicates that ADMET modeling should not be treated as a single homogeneous prediction problem.
 Instead, each endpoint reflects a different combination of physicochemical, biological, and experimental factors, which affects how much predictive signal can be extracted from molecular structure alone.
@@ -669,7 +653,7 @@ In these cases, GNNs can benefit from atom-level and bond-level message passing,
 In contrast, Half-Life and Hepatocyte clearance showed weak predictive performance across model families, with near-zero or negative \(R^2\) values.
 This suggests that these tasks depend on biological and experimental factors not encoded in molecular structure alone, including enzyme-mediated metabolism, transporter interactions, tissue distribution, and plasma protein binding effects~\cite{li2019dmpk,lai2022dmpk,bohnert2013proteinbinding}.
 The poor performance on these endpoints is therefore better explained by limitations of structure-only molecular representations than by architecture alone.
-Increasing model complexity cannot fully compensate for missing biological context when the input representation does not contain the information required to explain the target variable.
+In our experiments, increasing model complexity did not compensate for the apparent lack of biological context in the structure-only input representation, consistent with the information required to explain these targets not being captured by molecular structure alone.
 
 The classification results further demonstrate the importance of endpoint-specific evaluation.
 Although toxicity and cardiotoxicity tasks are both classification problems, they differ substantially in class balance and biological mechanism.
@@ -694,18 +678,23 @@ For small and noisy ADMET datasets, validation performance may be unstable, and 
 This reinforces the need for repeated runs, consistent evaluation protocols, and transparent reporting of variance across seeds.
 In practice, simple optimization strategies may be sufficient for some endpoints, while more expensive search methods should be justified by consistent improvements across independent runs.
 
-Overall, the main implication of this study is that ADMET prediction requires endpoint-aware modeling.
+Taken together, these results argue for endpoint-aware modeling.
 For endpoints where molecular structure contains strong predictive signal, graph-based and pretrained molecular models can provide clear benefits.
 For endpoints governed by complex biological processes, structure-only prediction remains limited, and future models should incorporate additional information such as assay conditions, metabolic enzymes, transporter profiles, protein binding measurements, or cell-type-specific biological context.
 Such multimodal representations may be necessary to improve prediction for pharmacokinetic endpoints such as clearance and half-life.
 
-This study also has several limitations.
-First, the benchmark focuses on six ADMET endpoints, which cover important but not exhaustive aspects of drug safety and pharmacokinetics.
-Second, the pretrained models are evaluated as representative molecular representation models rather than as an exhaustive comparison of all available pretrained molecular architectures.
-Third, the study focuses primarily on structure-based inputs, so biological and experimental covariates are not included.
-Finally, although repeated runs are used to reduce seed-dependent effects, further validation on additional datasets and prospective experimental settings would strengthen the conclusions.
+For biomedical informatics applications, the practical implication is that ADMET predictors should not be treated as interchangeable black-box components. Endpoints such as hERG cardiotoxicity and Caco-2 permeability may support useful structure-based screening, whereas hepatocyte clearance and half-life require additional biological or assay-level context before predictions can be considered reliable for decision support. This distinction matters for avoiding unsafe overreliance on structure-only AI models in early-stage drug-discovery workflows.
 
-In future work, the benchmark could be extended in three directions.
+This study also has several limitations that bound the scope of our conclusions.
+First, the benchmark focuses on six TDC ADMET endpoints, which cover important but not exhaustive aspects of drug safety and pharmacokinetics.
+Second, the pretrained encoders (ChemBERTa, MolCLR) are evaluated in a frozen feature-extraction setting rather than under full task-specific fine-tuning, which may underestimate their potential; they are also treated as representative rather than exhaustive examples of pretrained molecular models.
+Third, all model families operate on structure-only inputs, so biological and experimental covariates (assay conditions, metabolizing enzymes, transporter and protein-binding measurements) are not included.
+Fourth, scaffold splitting is a more realistic evaluation protocol than random splitting, but it is still a retrospective benchmark and not a full prospective validation on newly synthesized chemical series.
+Fifth, the datasets are small (hundreds to a few thousand compounds) and, for the toxicity tasks, class-imbalanced (e.g., a $\approx$4.2\% positive rate on Tox21 NR-AR), which increases variance across splits and can bias training objectives.
+Finally, the hyperparameter optimization comparison is limited to a 50-trial budget per algorithm and dataset; a larger budget could alter the relative standing of the metaheuristics against Random Search.
+Accordingly, our conclusions apply within the evaluated datasets, model families, scaffold-split protocol, and frozen/pretrained setup, and further validation on additional datasets and prospective experimental settings would strengthen them.
+
+The benchmark can be extended in three directions.
 First, additional ADMET endpoints from the TDC benchmark and external pharmaceutical datasets could be included to test whether the observed endpoint-dependent trends generalize more broadly.
 Second, multimodal models that combine molecular graphs with assay metadata, protein targets, enzyme information, or transcriptomic features could be evaluated for endpoints where structure-only representations fail.
 Third, uncertainty estimation and calibration should be incorporated to assess not only predictive accuracy but also the reliability of model confidence, which is especially important for safety-critical ADMET applications.
@@ -714,9 +703,9 @@ Third, uncertainty estimation and calibration should be incorporated to assess n
 \section{Conclusion}
 \label{sec:conclusion}
 
-In this work, we investigated the task-dependent performance of molecular graph neural networks and pretrained representations for ADMET prediction under scaffold-split evaluation. Through over 2{,}100 training runs and controlled comparisons across five model families and six TDC ADMET benchmarks, our results demonstrate that predictive performance varies substantially across endpoints, with strong results achieved on tasks characterized by clear structure-activity relationships, such as hERG cardiotoxicity (AUC = 0.825) and Caco-2 permeability (R$^2$ = 0.48), while both GNNs and pretrained encoders fail to achieve meaningful predictions on pharmacokinetic endpoints such as hepatocyte clearance and half-life.
+In this work, we investigated the task-dependent performance of molecular graph neural networks and pretrained representations for ADMET prediction under scaffold-split evaluation. Through over 2{,}100 training runs and controlled comparisons across five model families and six TDC ADMET benchmarks, our results demonstrate that predictive performance varies substantially across endpoints, with strong results achieved on tasks characterized by clear structure-activity relationships, such as hERG cardiotoxicity (AUC = 0.825) and Caco-2 permeability (R$^2$ = 0.48), while both GNNs and pretrained encoders yielded near-zero or negative R$^2$ on pharmacokinetic endpoints such as hepatocyte clearance and half-life within this benchmark.
 
-Based on these results, we identify three levels of task learnability from molecular structure. First, structure-driven tasks (hERG, Caco-2) where GNNs match or outperform pretrained encoders and achieve practically useful predictions. Second, moderately structure-driven tasks (Tox21, Microsomal clearance) where structure is partially informative and performance is similar across model families. Third, tasks where structure alone is insufficient (Half-Life, Hepatocyte clearance), where all evaluated models fail regardless of complexity or pretraining. These findings show that model performance depends strongly on endpoint characteristics, and that increased model complexity is beneficial mainly when molecular structure contains sufficient predictive signal. In particular, the inability of all evaluated models to achieve meaningful performance on certain pharmacokinetic endpoints suggests that molecular structure alone does not provide sufficient information for these predictions.
+Based on these results, we identify three levels of task learnability from molecular structure. First, structure-driven tasks (hERG, Caco-2) where GNNs match or outperform pretrained encoders and achieve practically useful predictions. Second, moderately structure-driven tasks (Tox21, Microsomal clearance) where structure is partially informative and performance is similar across model families. Third, tasks where structure-only representations were weakly predictive (Half-Life, Hepatocyte clearance), where all evaluated models yielded near-zero or negative R$^2$ regardless of complexity or pretraining. These findings show that model performance depends strongly on endpoint characteristics, and that increased model complexity is beneficial mainly when molecular structure contains sufficient predictive signal. In particular, the weak performance of all evaluated models on certain pharmacokinetic endpoints suggests that, within the evaluated datasets and protocol, molecular structure alone provides limited information for these predictions.
 
 Scaffold-split evaluation plays a critical role in drawing reliable conclusions about model performance. Comparing models without testing on the same splits leads to inconsistent and potentially misleading conclusions. Random splits produce overly optimistic results by allowing structurally similar molecules in both training and test sets. Scaffold splitting is necessary for realistic assessment: it alters model rankings, compresses performance differences between optimization strategies, and reveals true generalization capabilities. We further show that no HPO algorithm outperforms Random Search under scaffold-split conditions at a 50-trial budget, with paired 95\% confidence intervals that span or fall below zero, reinforcing that evaluation protocol mediates the apparent benefit of adaptive optimization.
 
@@ -724,11 +713,51 @@ This study has several limitations. First, all models operate on structure-only 
 
 Future work should focus on extending molecular prediction frameworks beyond structure-only representations by incorporating additional sources of biological and experimental information, such as protein targets, assay conditions, and pharmacokinetic context. Additionally, further investigation into evaluation strategies and uncertainty-aware model selection may improve the reliability of AI systems deployed in drug discovery pipelines.
 
-Overall, our findings show that reliable ADMET modeling requires both appropriate model selection and a clear understanding of the limits of structure-only molecular representations.
+Overall, our findings show that reliable ADMET modeling requires both appropriate model selection and a clear understanding of the limits of structure-only molecular representations. Reliable deployment of AI in biomedical drug-discovery workflows therefore requires endpoint-aware model selection and explicit recognition of these representational limits. These findings support a more cautious, evidence-based use of molecular AI as decision support in translational biomedical informatics.
 
-
+% TODO: adjust the back-matter sections below (Data and Code Availability, Author Contributions,
+% Funding, Competing Interests, Ethics Statement) to the target IEEE journal's required format and
+% ordering; some IEEE venues use a single \section*{Acknowledgment} and place declarations differently.
 \section*{Data and Code Availability}
-All datasets used in this study are publicly available through the Therapeutics Data Commons (TDC; \url{https://tdcommons.ai/}). Source code, trained model configurations, HPO result logs, and all experimental results are available at \url{https://github.com/NitramVonemats/MANU_Project}.
+All datasets used in this study are publicly available through the Therapeutics Data Commons (TDC; \url{https://tdcommons.ai/}). Source code, trained model configurations, hyperparameter-optimization result logs, and all experimental results are available at \url{https://github.com/NitramVonemats/MANU_Project}.
+% TODO: before submission, manually confirm the repository at the URL above provides:
+%   (1) it is PUBLIC (do not claim public availability otherwise);
+%   (2) a README documenting the reproduction commands;
+%   (3) a requirements.txt / environment.yml pinning dependency versions;
+%   (4) the seeds, configs, HPO logs, and result files are actually included;
+%   (5) a LICENSE file if the target journal requires one.
+Multi-seed validation uses the fixed seeds $[42, 123, 456, 789, 1011]$, and each HPO algorithm is run for 50 trials per dataset. Software dependencies and exact versions are documented in the repository (Python~$\geq$~3.8, PyTorch~$\geq$~2.0, PyTorch Geometric, RDKit, PyTDC, NiaPy, Optuna, and Transformers).
+
+\section*{Author Contributions}
+% TODO: confirm the exact CRediT roles for each author before submission.
+M.S. and M.G. contributed equally: they designed and implemented the benchmarking framework, conducted the experiments, and drafted the manuscript. V.V. contributed to the analysis and interpretation of results. % TODO: confirm V.V.'s specific contribution.
+I.I. supervised the study and revised the manuscript. All authors reviewed and approved the final version.
+
+\section*{Funding}
+This work was supported by the Faculty of Computer Science and Engineering, Ss.\ Cyril and Methodius University, Skopje, North Macedonia. % TODO: add grant/award numbers if applicable.
+
+\section*{Competing Interests}
+The authors declare no competing interests.
+
+\section*{Ethics Statement}
+This study used only publicly available benchmark datasets from the Therapeutics Data Commons. No human-subject or animal experiments were conducted by the authors.
+
+\section*{Supplementary Figures}
+This appendix provides detailed diagnostic figures referenced in the main text: per-class confusion matrices for the best toxicity classification models, and a visual summary of the multi-seed validation results.
+
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[width=0.95\textwidth,height=0.68\textheight,keepaspectratio]{confusion_matrices.png}
+    \caption{Supplementary confusion matrices for the best-performing toxicity classification models. (A) Tox21 shows majority-class bias due to extreme imbalance (SA, F1 = 0.455). (B) hERG shows balanced performance (ABC, F1 = 0.809).}
+    \label{fig:confusion_matrices}
+\end{figure*}
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\columnwidth,height=0.42\textheight,keepaspectratio]{multi_seed_validation.png}
+    \caption{Supplementary multi-seed validation results: mean test metric with 95\% confidence interval across five random seeds for each dataset (values from Table~\ref{tab:multiseed}). Each panel is colored by dataset and uses its own vertical scale.}
+    \label{fig:multiseed_validation}
+\end{figure}
 
 \FloatBarrier
 \FloatBarrier

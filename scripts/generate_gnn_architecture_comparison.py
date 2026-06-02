@@ -333,7 +333,7 @@ fig, ax = plt.subplots(figsize=(10, 6))
 # Summary data for architecture selection
 summary_data = {
     'Architecture': ['Graph', 'GCN', 'TAG', 'GIN', 'SGC', 'Transformer', 'GAT', 'SAGE'],
-    'Avg_Rank': [1.0, 2.7, 2.7, 4.0, 5.3, 4.0, 7.0, 7.3],
+    'Avg_Rank': [2.3, 2.0, 2.3, 6.0, 3.7, 6.7, 7.0, 6.0],
     'Stability': ['High', 'High', 'Medium', 'Medium', 'High', 'Medium', 'Low', 'Low'],
     'Training_Speed': ['Fast', 'Fast', 'Medium', 'Slow', 'Fast', 'Slow', 'Slow', 'Medium']
 }
