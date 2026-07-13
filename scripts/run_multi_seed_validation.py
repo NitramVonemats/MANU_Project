@@ -496,6 +496,8 @@ def run_multi_seed_validation(dataset_name, task_type):
             'mae_log_std': np.std(mae_logs),
             'rmse_orig_mean': np.mean(rmse_origs),
             'rmse_orig_std': np.std(rmse_origs),
+            'rmse_orig_median': float(np.median(rmse_origs)),
+            'rmse_orig_values': [float(x) for x in rmse_origs],
             'rmse_log_values': rmse_logs,
             'mae_log_values': mae_logs,
             'ci_lower': np.mean(rmse_logs) - 1.96 * np.std(rmse_logs) / np.sqrt(len(rmse_logs)),

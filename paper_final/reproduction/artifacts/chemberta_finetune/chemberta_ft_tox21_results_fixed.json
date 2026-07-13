@@ -1,0 +1,14 @@
+{
+  "dataset": "tox21",
+  "task_type": "classification",
+  "best_val_metric": 0.8099930118798043,
+  "epochs_trained": 12,
+  "preprocessing": {
+    "split_method": "2-way TDC + 90/10 manual",
+    "clip_min": 0.001,
+    "mu": 0.0,
+    "sigma": 1.0
+  },
+  "test_auc": 0.47366946778711483,
+  "test_metric": 0.47366946778711483
+}
